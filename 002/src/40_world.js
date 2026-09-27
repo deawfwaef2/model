@@ -584,7 +584,7 @@
   */
   function buildTitan(act, big) {
     var g = new T.Group();
-    var scale = big ? 2.05 : 1.45;
+    var scale = big ? 2.80 : 1.95;
 
     var body = A.getSkinned('titan', scale);
     body.rotation.y = -Math.PI / 2;            // 模型朝 +Z，转成朝 -X（面向玩家）
@@ -643,7 +643,7 @@
     core.scale.setScalar(scale);
     coreRing.scale.setScalar(scale);
     g.add(core); g.add(coreRing);
-    core.position.set(-1.15 * scale, 3.2 * scale, 0);
+    core.position.set(-1.00 * scale, 2.15 * scale, 0);
     coreRing.position.copy(core.position);
 
     /* 眼睛：死亡时会熄灭 */
@@ -652,18 +652,18 @@
       new T.MeshBasicMaterial({ color: 0xff3a2a, transparent: true, opacity: 0.95, blending: T.AdditiveBlending, depthWrite: false, fog: false })
     );
     eye.scale.setScalar(scale);
-    eye.position.set(-0.78 * scale, 4.35 * scale, 0);
+    eye.position.set(-0.58 * scale, 3.05 * scale, 0);
     g.add(eye);
 
     /* 护盾壳 */
     var shield = new T.Mesh(
-      new T.IcosahedronGeometry(3.4 * scale, 2),
+      new T.IcosahedronGeometry(2.3 * scale, 2),
       new T.MeshBasicMaterial({
         color: 0x66ddff, transparent: true, opacity: 0.0, side: T.DoubleSide,
         blending: T.AdditiveBlending, depthWrite: false, wireframe: true, fog: false
       })
     );
-    shield.position.y = 2.6 * scale;
+    shield.position.y = 1.7 * scale;
     g.add(shield);
 
     /* 落地冲击的灰尘环（走一步触发一次） */
@@ -1451,13 +1451,13 @@
     if (ti.chestBone) {
       ti.chestBone.getWorldPosition(boneTmp);
       ti.mesh.worldToLocal(boneTmp);
-      ti.core.position.set(boneTmp.x - 1.15 * ti.scale, boneTmp.y, boneTmp.z);
+      ti.core.position.set(boneTmp.x - 1.00 * ti.scale, boneTmp.y + 0.18 * ti.scale, boneTmp.z);
       ti.coreRing.position.copy(ti.core.position);
     }
     if (ti.headBone) {
       ti.headBone.getWorldPosition(boneTmp);
       ti.mesh.worldToLocal(boneTmp);
-      ti.eye.position.set(boneTmp.x - 0.62 * ti.scale, boneTmp.y + 0.1 * ti.scale, boneTmp.z);
+      ti.eye.position.set(boneTmp.x - 0.30 * ti.scale, boneTmp.y + 0.06 * ti.scale, boneTmp.z);
     }
   }
 

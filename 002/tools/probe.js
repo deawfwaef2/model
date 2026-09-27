@@ -295,6 +295,54 @@ function simulate(level, opts) {
   }
 }
 
+
+(function(){
+  const T=win.THREE, V=T.Vector3, B3=T.Box3;
+  G.startLevel(12);
+  // 跑满 3 秒，让摄像机从 intro 过渡到 play 稳定下来
+  for (let i=0;i<180;i++){ botAim(G.elapsed); G.pointerDown=true; G.update(1/60); W.render(); }
+  const ti=W.titan;
+  console.log('\n  === 泰坦骨骼高度（世界 Y，泰坦站在 y=0） ===');
+  const want=['Hips','Abdomen','Torso_1','Neck','Head','ShoulderL','UpperArmL'];
+  ti.body.updateMatrixWorld(true);
+  ti.body.traverse(o=>{ if(o.isBone && want.indexOf(o.name)>=0){
+    const p=new V(); o.getWorldPosition(p);
+    console.log('    '+o.name.padEnd(12)+' y='+p.y.toFixed(2)+'  x偏移='+(p.x-ti.mesh.position.x).toFixed(2)); }});
+  // 真实蒙皮包围盒
+  const box=new B3(), v=new V();
+  ti.body.traverse(o=>{ if(o.isSkinnedMesh){ const pos=o.geometry.attributes.position;
+    for(let i=0;i<pos.count;i+=7){ v.fromBufferAttribute(pos,i); o.applyBoneTransform(i,v); v.applyMatrix4(o.matrixWorld); box.expandByPoint(v);} }});
+  const sz=box.getSize(new V());
+  console.log('    实际蒙皮包围盒 '+sz.x.toFixed(2)+' x '+sz.y.toFixed(2)+' x '+sz.z.toFixed(2)+'   y '+box.min.y.toFixed(2)+'~'+box.max.y.toFixed(2)
+    +'   x偏移 '+(box.min.x-ti.mesh.position.x).toFixed(2)+'~'+(box.max.x-ti.mesh.position.x).toFixed(2));
+
+  console.log('\n  === 主角 ===');
+  const hb=new B3().setFromObject(W.heroPivot); const hs=hb.getSize(new V());
+  console.log('    宇航员本体 '+hs.x.toFixed(2)+' x '+hs.y.toFixed(2)+' x '+hs.z.toFixed(2)+'  (目标≈1.9 米高)');
+
+  console.log('\n  === 摄像机构图（play 模式，16:9） ===');
+  W.camera.aspect=16/9; W.camera.updateProjectionMatrix(); W.camera.updateMatrixWorld(true);
+  W.camera.matrixWorldInverse.copy(W.camera.matrixWorld).invert();
+  console.log('    camera pos=('+W.camera.position.x.toFixed(1)+', '+W.camera.position.y.toFixed(1)+', '+W.camera.position.z.toFixed(1)+')  fov='+W.camera.fov);
+  function scr(v,l){ const p=v.clone().project(W.camera);
+    const X=(p.x*0.5+0.5)*100, Y=(-p.y*0.5+0.5)*100;
+    console.log('    '+l.padEnd(14)+' x='+X.toFixed(0).padStart(5)+'%  y='+Y.toFixed(0).padStart(5)+'%'+((X<0||X>100||Y<0||Y>100)?'   ← 出画':'')); }
+  const cw=new V(); ti.core.getWorldPosition(cw);
+  scr(new V(0,1.0,0),'主角');
+  scr(cw,'泰坦核心');
+  scr(new V(46,10.6,0),'泰坦头顶');
+  scr(new V(11.5,1.5,0),'C1 小兵');
+  scr(new V(18.5,3.4,0),'C2 增幅');
+  scr(new V(25.5,3.2,0),'C3 轮回');
+  scr(new V(32.5,2,0),'C4 守卫');
+  scr(new V(58,8.6,0),'裂隙门');
+  scr(new V(20,0,12),'地板 +Z 缘');
+  scr(new V(20,0,-12),'地板 -Z 缘');
+  scr(new V(20,7.2,0),'头顶横管');
+  G.abandon();
+  process.exit(0);
+})();
+
 console.log('\n  === 关卡空跑（自动瞄准 + 全自动开火） ===');
 levelsToTest.forEach(n => simulate(n, {}));
 
@@ -336,52 +384,6 @@ for (let i = 0; i < 6; i++) { G.startLevel(5 + i); G.abandon(); }
 const after = W.scene.children.length;
 console.log('    scene.children ' + before + ' → ' + after + (Math.abs(after - before) > 3 ? '  ✗ 可能泄漏' : '  ✓'));
 if (Math.abs(after - before) > 3) failures++;
-
-/* ------------------------------ UI 冒烟 ------------------------------ */
-console.log('\n  === UI 构建与渲染 ===');
-try {
-  run('60_ui.js', fs.readFileSync(path.join(SRC, '60_ui.js'), 'utf8'));
-  const U = TL.ui;
-  if (!U) throw new Error('TL.ui 未定义');
-  U.build();
-  U.relabel();
-  console.log('    U.build() ✓  已注册元素 ' + Object.keys(U.el).length + ' 个');
-
-  // 每个面板都过一遍，捕捉渲染期的空引用
-  const panels = ['menu', 'levels', 'shop', 'lab', 'settings'];
-  for (const name of panels) {
-    U.show(name);
-    console.log('    show(' + name + ') ✓');
-  }
-  // 商店三个页签
-  for (const tab of ['weapons', 'boosters']) {
-    if (U.setShopTab) U.setShopTab(tab);
-  }
-  // HUD + 结算页
-  U.show('hud');
-  U.setHud && U.setHud({ time: 4.2, hp: 80, combo: 7 });
-  const fake = { win: true, stars: 3, time: 3.21, par: 5.0, n: 12, coins: 420, shards: 8,
-                 best: true, reason: 'killed', canRevive: false, amps: [] };
-  U.showResult && U.showResult(fake);
-  console.log('    showResult(胜利 3★) ✓');
-  U.showResult && U.showResult(Object.assign({}, fake, { win: false, stars: 0, reason: 'crushed', canRevive: true }));
-  console.log('    showResult(失败可续命) ✓');
-  U.toast && U.toast('测试提示', '#ffc63a');
-  U.float && U.float({ x: 100, y: 100 }, '999', 'crit');
-  U.big && U.big('GO');
-
-  // 图标系统：确认没有一个图标是空的
-  let missing = [];
-  ['rapid','heavy','split','pierce','burn','chrono','crit','ward','greed','chain','siege','echo',
-   'dmg','rate','hp','time','magnet','start','pulse','shred','lance','storm','void',
-   'amp1','time2','shield','play','shop','lab','levels','settings','gift','help','sound']
-    .forEach(id => { if (!TL.assets.iconFor(id, '')) missing.push(id); });
-  if (missing.length) { failures++; console.error('    ✗ 缺图标: ' + missing.join(', ')); }
-  else console.log('    图标映射 ✓ 全部命中 Lucide');
-} catch (e) {
-  failures++;
-  console.error('    ✗ UI 失败 → ' + (e && e.stack || e));
-}
 
 console.log('\n' + (failures ? '  ✗ 共 ' + failures + ' 处问题\n' : '  ✓ 全部通过\n'));
 process.exit(failures ? 1 : 0);

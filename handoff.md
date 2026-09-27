@@ -237,3 +237,62 @@ fov、机位高度、俯角与注视点前移量。改相机参数后**必须重
 `kills < 40` 说明尸潮密度掉了，`HP < 30` 说明难度超标。
 
 **注意**：无头容器里 emoji 渲染成豆腐块（🪙⏸⚡），真实浏览器正常，**别当 BUG 修**。
+
+---
+
+## 2026-09-28 · 002 TITAN LOOP —— 真实素材换装（美术大改）
+
+上一版被判定「太粗糙、太 AI 味」。这一轮把美术底座整个换掉，记录关键决策与坑，
+后来者改 `002/` 之前务必先读这一节。
+
+### 素材来源（全部 CC0 / OFL / MIT / ISC，可商用，台账见 `002/ASSETS.md`）
+- **3D 模型 69 个**：Kenney 的 Space Kit / Blaster Kit / Tower Defense Kit（CC0），
+  经 `github.com/Hidencod/tge-assets` 镜像取 `.glb`（贴图已内嵌，自包含）。
+- **BOSS**：three.js 官方示例 `RobotExpressive.glb`（CC0，Tomás Laulhé / Don McCurdy），
+  43 骨骼 + 14 段动画 + 头部 Angry/Surprised/Sad 形变。
+- **字体**：Orbitron / Chakra Petch / Share Tech Mono（SIL OFL），走 Fontsource 的 woff2。
+- **图标 49 个**：Lucide（ISC）。原来的 Emoji 全部替换 —— Emoji 在不同系统字形不一致，
+  是「随手凑」观感的最大来源之一。
+
+### 三个必须知道的坑
+1. **file:// 不能 fetch**，所以模型/字体/图标全部 base64 内联。
+   由 `tools/gen-assets.js` 烘焙成 `src/05_assets_data.js` 和 `src/01_fonts.css`，
+   **这两个是生成文件但要提交**，保证开发预览和单文件包走完全相同的代码路径。
+   改了 `assets/` 之后必须重跑 `node 002/tools/gen-assets.js`。
+2. **Kenney Space Kit 的模型原点不在中心**，而在它所占格子的角上
+   （1×1 的件实际占 x∈[1.5,2.5], z∈[1,2]）。`07_assets.js` 在载入时统一把原点
+   归一化到「底面中心」。武器（blaster-*）保留原点，那是握把。
+3. **RobotExpressive 的骨架根带 100 倍缩放**（Blender 导出惯例，靠 SkinnedMesh 端
+   的 0.01 抵消）。直接 `bone.add(obj)` 会让物体放大 100 倍飞出场景。
+   但 `bone.getWorldPosition()` 是准的 —— 弱点核心因此改为挂在泰坦组下，
+   每帧从骨骼世界坐标反算本地坐标（`syncTitanParts`）。
+
+### 美术方向（改之前请理解意图）
+- 全部静态模型共用 `TL.assets` 的**调色板材质**（Kenney 是具名材质无贴图：
+  metal / metalDark / metalRed / dark / rock / crystal …）。换幕只改调色板颜色，
+  整个世界瞬间换肤，零几何体重建。不要给场景件单独 new 材质，会破坏合批。
+- 需要逐个体闪白的实体才调 `ownMats()` 克隆材质，配合 `W.glow(mats, color, i)`。
+- 静态布景走 `TL.assets.merge()` 合批：**整个场地只有 8 个 draw call**（远景 5 个）。
+- 低多边形要不廉价，靠的是 **Bloom + 逆光边缘光 + 雾**，不是堆面数。
+  后期链：RenderPass → UnrealBloomPass → 自写调色（暗角/颗粒/色散/扫描线）→ OutputPass。
+  低画质档直接跳过后期。
+
+### 命中盒与视觉解耦
+泰坦换模型后体型变了，但**命中盒沿用旧版等效尺寸**（`hitX/hitZ/hitH/coreR/r`），
+所以 `30_data.js` 的数值模型完全不用动。AI 空跑仍是 23/23 全胜。
+以后换模型请同样只改视觉 `scale`，不要动命中盒，除非重跑平衡。
+
+### 清场时的致命坑
+模型副本**共享几何体**（clone 只复制节点树）。`disposeTree` 必须跳过
+`userData.sharedGeo` 的网格，否则第二关开始所有模型变成空网格。
+
+### 新增/变更的文件
+- `002/assets/`（models 69 / fonts 5 / icons 49，原始 2.2MB）
+- `002/lib/three-addons.js` —— GLTFLoader + EffectComposer + Bloom + SkeletonUtils，
+  由 `tools/make-three-addons.js` 从官方 ESM 自动转经典脚本（r160 addons 只有 ESM 版）
+- `002/src/01_fonts.css`、`002/src/05_assets_data.js`（生成物）、`002/src/07_assets.js`
+- `002/tools/gen-assets.js`、`002/tools/make-three-addons.js`
+- `002/ASSETS.md` 版权台账
+
+### 当前体积
+单文件 HTML 4.0MB / zip 1.07MB，远低于 20MB 上限。

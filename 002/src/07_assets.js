@@ -441,6 +441,48 @@
      图标
      ====================================================================== */
 
+  /*
+     游戏数据里的图标原本是 Emoji / 几何字符（⚡💥✳…）。
+     不同系统渲染 Emoji 的字形、基线、配色都不一样，一眼就是"随手凑的"。
+     这里统一映射到 Lucide 线性图标（ISC 授权），全平台完全一致，
+     而且能跟随 currentColor 上色、跟着字号缩放。
+  */
+  var ICON_BY_ID = {
+    /* 局内增幅 */
+    rapid: 'zap', heavy: 'bomb', split: 'git-fork', pierce: 'move-right',
+    burn: 'flame', chrono: 'hourglass', crit: 'sparkles', ward: 'shield',
+    greed: 'coins', chain: 'activity', siege: 'skull', echo: 'circle-dot',
+    /* 永久升级 */
+    dmg: 'swords', rate: 'zap', hp: 'shield-plus', time: 'clock',
+    magnet: 'maximize-2', start: 'star',
+    /* 武器 */
+    pulse: 'crosshair', shred: 'waves', lance: 'arrow-big-up',
+    storm: 'activity', 'void': 'circle-dot',
+    /* 商店道具 */
+    amp1: 'star', time2: 'hourglass', shield: 'shield',
+    /* 界面动作 */
+    play: 'play', shop: 'shopping-cart', lab: 'flask-conical', levels: 'layout-grid',
+    settings: 'settings-2', pause: 'pause', close: 'x', back: 'chevron-left',
+    retry: 'rotate-ccw', next: 'chevron-right', home: 'house', gift: 'gift',
+    trophy: 'trophy', coin: 'coins', shard: 'gem', star: 'star',
+    locked: 'lock', help: 'circle-help', warn: 'triangle-alert',
+    sound: 'volume-2', mute: 'volume-x', boss: 'skull', rocket: 'rocket',
+    target: 'target', aim: 'crosshair', best: 'trending-up', check: 'check',
+    ad: 'radio-tower', device: 'monitor-smartphone', haptic: 'vibrate'
+  };
+
+  /**
+   * 按数据条目的 id 取图标 HTML。
+   * @param {string} id        数据 id（rapid / pulse / dmg …）
+   * @param {string} fallback  找不到映射时退回原来的字符
+   */
+  A.iconFor = function (id, fallback) {
+    var name = ICON_BY_ID[id];
+    var svg = name && A.icons[name];
+    if (!svg) return fallback || '';
+    return svg.replace('<svg', '<svg class="ic-svg" aria-hidden="true" focusable="false"');
+  };
+
   /** 返回内联 SVG 字符串，可直接塞进 innerHTML；颜色跟随 CSS 的 currentColor */
   A.icon = function (name, cls) {
     var svg = A.icons[name];

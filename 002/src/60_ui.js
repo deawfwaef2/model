@@ -74,11 +74,11 @@
 
     var mid = h('div', 'menu-mid');
     var btns = h('div', 'menu-btns');
-    var bPlay = h('button', 'btn big', '▶ ' + t('play'));
-    var bLevels = h('button', 'btn ghost', '🗺 ' + t('levels'));
-    var bShop = h('button', 'btn ghost', '🛒 ' + t('shop'));
-    var bLab = h('button', 'btn ghost purple', '◈ ' + t('lab'));
-    var bDaily = h('button', 'btn ad', '🎁 ' + t('daily'));
+    var bPlay = h('button', 'btn big', TL.assets.iconFor('play') + '<span>' + t('play') + '</span>');
+    var bLevels = h('button', 'btn ghost', TL.assets.iconFor('levels') + '<span>' + t('levels') + '</span>');
+    var bShop = h('button', 'btn ghost', TL.assets.iconFor('shop') + '<span>' + t('shop') + '</span>');
+    var bLab = h('button', 'btn ghost purple', TL.assets.iconFor('lab') + '<span>' + t('lab') + '</span>');
+    var bDaily = h('button', 'btn ad', TL.assets.iconFor('gift') + '<span>' + t('daily') + '</span>');
     btns.appendChild(bPlay); btns.appendChild(bLevels); btns.appendChild(bShop); btns.appendChild(bLab); btns.appendChild(bDaily);
     mid.appendChild(btns);
 
@@ -93,10 +93,10 @@
     var bot = h('div', 'menu-bot');
     var curBar = h('div', 'currency-bar');
     bot.appendChild(curBar);
-    var bSet = h('button', 'iconbtn', '⚙');
-    var bHow = h('button', 'iconbtn', '?');
-    var bMute = h('button', 'iconbtn', '🔊');
-    var bLang = h('button', 'iconbtn', '文');
+    var bSet = h('button', 'iconbtn', TL.assets.iconFor('settings'));
+    var bHow = h('button', 'iconbtn', TL.assets.iconFor('help'));
+    var bMute = h('button', 'iconbtn', TL.assets.iconFor('sound'));
+    var bLang = h('button', 'iconbtn', '<span class="lang-glyph">文</span>');
     var row2 = h('div', 'menu-bot');
     row2.appendChild(bSet); row2.appendChild(bHow); row2.appendChild(bMute); row2.appendChild(bLang);
     var strip = h('div', 'stat-strip');
@@ -253,6 +253,7 @@
     var to = h('div'); to.id = 'toasts'; d.body.appendChild(to); U.el.toasts = to;
     var bt = h('div'); bt.id = 'bigtext'; bt.innerHTML = '<div class="bt"></div>'; d.body.appendChild(bt);
     U.el.bigtext = bt.querySelector('.bt');
+    var gr = h('div'); gr.id = 'grain'; d.body.appendChild(gr);
     var vg = h('div'); vg.id = 'vign'; d.body.appendChild(vg); U.el.vign = vg;
     var fx = h('div'); fx.id = 'flash'; d.body.appendChild(fx); U.el.flash = fx;
     var sc2 = h('div'); sc2.id = 'scan'; d.body.appendChild(sc2);
@@ -403,7 +404,7 @@
         var owned = s.ownedWeapons.indexOf(w.id) >= 0;
         var eq = s.weapon === w.id;
         var c = h('div', 'card' + (eq ? ' eq' : ''));
-        c.innerHTML = '<div class="ic" style="color:#' + ('000000' + w.color.toString(16)).slice(-6) + '">' + w.icon + '</div>' +
+        c.innerHTML = '<div class="ic" style="color:#' + ('000000' + w.color.toString(16)).slice(-6) + '">' + TL.assets.iconFor(w.id, w.icon) + '</div>' +
           '<div class="info"><div class="nm">' + TL.wName(w) + '</div><div class="ds">' + TL.wDesc(w) +
           '<br><span style="color:#fff;font-family:var(--mono)">DMG ' + w.dmg + ' · ' + w.rate + '/s · ×' + w.shots + '</span></div></div>';
         var act = h('div', 'act');
@@ -424,7 +425,7 @@
     } else {
       TL.BOOSTERS.forEach(function (b) {
         var c = h('div', 'card');
-        c.innerHTML = '<div class="ic">' + b.icon + '</div><div class="info"><div class="nm">' + (TL.lang === 'zh' ? b.zh : b.en) +
+        c.innerHTML = '<div class="ic">' + TL.assets.iconFor(b.id, b.icon) + '</div><div class="info"><div class="nm">' + (TL.lang === 'zh' ? b.zh : b.en) +
           '</div><div class="ds">' + (TL.lang === 'zh' ? b.zhd : b.end) + '</div></div>';
         var act = h('div', 'act');
         var bb = h('button', 'btn mini' + (s.coins >= b.cost ? '' : ' ghost'), '◉ ' + TL.fmt(b.cost));
@@ -462,7 +463,7 @@
       var c = h('div', 'card');
       var bars = '';
       for (var i = 0; i < u.max; i++) bars += '<i class="' + (i < lvl ? 'on' : '') + '"></i>';
-      c.innerHTML = '<div class="ic" style="color:var(--purple)">' + u.icon + '</div>' +
+      c.innerHTML = '<div class="ic" style="color:var(--purple)">' + TL.assets.iconFor(u.id, u.icon) + '</div>' +
         '<div class="info"><div class="nm">' + t('up_' + u.id) + ' <span style="color:var(--purple);font-family:var(--mono)">' + lvl + '/' + u.max + '</span></div>' +
         '<div class="ds">' + t('up_' + u.id + '_d') + '</div><div class="lvbar">' + bars + '</div></div>';
       var act = h('div', 'act');
@@ -915,7 +916,7 @@
       ampChips[key].el.setAttribute('data-n', ampChips[key].n);
       ampChips[key].el.classList.add('stack');
     } else {
-      var e = h('div', 'amp-chip', '<span class="ic">' + a.icon + '</span>' + TL.ampName(a));
+      var e = h('div', 'amp-chip', '<span class="ic">' + TL.assets.iconFor(a.id, a.icon) + '</span>' + TL.ampName(a));
       U.el.rail.appendChild(e);
       ampChips[key] = { el: e, n: 1 };
     }
