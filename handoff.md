@@ -203,3 +203,37 @@ node 001/titan-loop/tools/build.js       # 再打包（每次 push 前必跑）
   从此 001 与 002 互不干扰。
 - TITAN LOOP 全部内容现位于 `002/`，目录结构不变（src / lib / packages / releases / tools）。
 - 编号规则确认：**一个编号 = 一个游戏**，不要再往别人的编号里塞东西。
+### 2026-09-28 · Agent(Arena) · 项目 001《ZOMBIE RUSH 3D》M3 真机化 QA 与修复
+
+本轮用 **Puppeteer 无头 Chrome 真实跑游戏**（不是看代码）做验收，记录几个后来者极易再犯的坑：
+
+**坑 1 —— three.js `Object3D.id` 是只读的。**
+给敌人挂 `mesh.id = n` 在严格模式下抛 `TypeError: Cannot assign to read only property 'id'`，
+后果是**整局游戏一个敌人都刷不出来**，而画面看起来"正常"（只是空荡荡的路）。
+给 three 对象挂自定义字段一律走 `userData.*`，永远不要占用
+`id / uuid / type / name / parent / children / matrix*`。
+
+**坑 2 —— 菜单演示态改过的 transform，进游戏必须显式复位。**
+主菜单的转台动画每帧写 `playerGroup.rotation.y`，`beginLevel()` 忘了复位，
+于是开局主角以 3.82 rad 侧着身子往前跑。现在 `beginLevel()` 会把
+`player / playerGroup / aimPivot` 的 rotation+position 全部重置。
+
+**坑 3 —— 天空穹顶/月亮必须跟着相机走。**
+天空球半径 400 且固定在世界原点，玩家跑到 z=-400 就跑到天空球**外面**去了，
+画面突然变成一片灰。现在 `skyGroup` 每帧对齐相机 xz，并加了 900×900 的
+兜底地面，避免雾的尽头出现"世界边缘"硬边。
+
+**坑 4 —— 竖屏手机的垂直 FOV 会灌满一屏天空。**
+`onResize` 现在按 aspect 三档切换相机（portrait / square / landscape）的
+fov、机位高度、俯角与注视点前移量。改相机参数后**必须重新截竖屏图验收**。
+
+**坑 5 —— 自动化测试脚本本身会制造假 BUG。**
+早期脚本把鼠标固定在屏幕中心，子弹全部直飞正前方，而敌人在 ±8 横向，
+几乎永不相交 → 误判成"命中判定坏了"。现已提供测试钩子
+`ZR._targetScreen()`（最近敌人的屏幕投影坐标）与 `ZR._hurt(n)`，
+机器人用它瞄准/触发死亡，任何人改完数值都能一键回归。
+
+**L1 回归基准线（弱机器人，18s）**：51 kills / 123 coins / HP 76 of 110 / 0 errors。
+`kills < 40` 说明尸潮密度掉了，`HP < 30` 说明难度超标。
+
+**注意**：无头容器里 emoji 渲染成豆腐块（🪙⏸⚡），真实浏览器正常，**别当 BUG 修**。

@@ -117,6 +117,7 @@
   var timeScale = 1, hitStop = 0;
   var shake = 0, shakeDecay = 6;
   var camOffset = new TH.Vector3(0, 7.4, 11.2);
+  var camLookY = 1.9, camLookAhead = 11;
 
   function initThree() {
     var wrap = dom.canvasWrap;
@@ -168,6 +169,22 @@
     if (!renderer) return;
     var w = window.innerWidth, h = window.innerHeight;
     camera.aspect = w / h;
+
+    /* Portrait phones have a huge vertical FOV, which filled the screen with
+       empty sky. Pitch the camera down and pull it in so the highway fills
+       the frame in any aspect ratio. */
+    var a = w / h;
+    if (a < 0.80) {            // tall portrait
+      camera.fov = 56;
+      camOffset.set(0, 11.2, 11.6); camLookY = 1.5; camLookAhead = 13.0;
+    } else if (a < 1.15) {     // square-ish / tablet portrait
+      camera.fov = 59;
+      camOffset.set(0, 9.3, 11.4); camLookY = 1.7; camLookAhead = 12;
+    } else {                   // landscape / desktop
+      camera.fov = 62;
+      camOffset.set(0, 7.4, 11.2); camLookY = 1.9; camLookAhead = 11;
+    }
+
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.innerWidth < 800 ? 1.4 : 1.6));
@@ -200,7 +217,10 @@
   }
 
   /* ------------------------------------------------------------ SKY / ATMO */
+  var skyGroup = null, groundPlane = null;
   function buildSky() {
+    skyGroup = new TH.Group();
+    scene.add(skyGroup);
     // gradient dome
     var c = document.createElement('canvas'); c.width = 4; c.height = 256;
     var g = c.getContext('2d');
@@ -213,10 +233,19 @@
     g.fillStyle = grd; g.fillRect(0, 0, 4, 256);
     var tex = new TH.CanvasTexture(c);
     var sky = new TH.Mesh(
-      new TH.SphereGeometry(400, 16, 12),
+      new TH.SphereGeometry(400, 20, 14),
       new TH.MeshBasicMaterial({ map: tex, side: TH.BackSide, fog: false, depthWrite: false })
     );
-    scene.add(sky);
+    skyGroup.add(sky);
+
+    // Endless ground so the world never visibly "ends" at the fog line.
+    groundPlane = new TH.Mesh(
+      new TH.PlaneGeometry(900, 900),
+      new TH.MeshLambertMaterial({ color: 0x1a1f2b })
+    );
+    groundPlane.rotation.x = -Math.PI / 2;
+    groundPlane.position.y = -0.55;
+    scene.add(groundPlane);
 
     // blood moon
     var moon = new TH.Mesh(
@@ -224,13 +253,13 @@
       new TH.MeshBasicMaterial({ color: 0xff5a3c, fog: false, transparent: true, opacity: 0.92 })
     );
     moon.position.set(-90, 78, -320);
-    scene.add(moon);
+    skyGroup.add(moon);
     var halo = new TH.Mesh(
       new TH.CircleGeometry(52, 28),
       new TH.MeshBasicMaterial({ color: 0xff3311, fog: false, transparent: true, opacity: 0.16, blending: TH.AdditiveBlending, depthWrite: false })
     );
     halo.position.set(-90, 78, -321);
-    scene.add(halo);
+    skyGroup.add(halo);
 
     // drifting ash particles
     var pg = new TH.BufferGeometry();
@@ -2013,6 +2042,8 @@
     }
     shieldMesh.rotation.y += raw * 1.1;
 
+    if (skyGroup) skyGroup.position.set(camera.position.x, 0, camera.position.z);
+    if (groundPlane) groundPlane.position.set(camera.position.x, -0.55, camera.position.z - 120);
     if (ash) {
       ash.position.z = Math.floor(player.position.z / 110) * 110;
       ash.rotation.y += raw * 0.02;
@@ -2199,7 +2230,7 @@
     camera.position.x += (desiredX - camera.position.x) * k;
     camera.position.y += (camOffset.y - camera.position.y) * k;
     camera.position.z += ((player.position.z + camOffset.z) - camera.position.z) * Math.min(1, dt * 12);
-    camLook.set(player.position.x * 0.5, 1.9, player.position.z - 11);
+    camLook.set(player.position.x * 0.5, camLookY, player.position.z - camLookAhead);
     camera.rotation.z = 0;
     camera.lookAt(camLook);
   }
@@ -2406,6 +2437,7 @@
       };
     },
     _force: function (k, v) { if (R) R[k] = v; },
+    _hurt: function (n) { if (R && state === 'playing') { R.iframe = 0; damagePlayer(n || 9999); } },
     /* test hook: screen-space position of the nearest enemy ahead */
     _targetScreen: function () {
       var best = null, bd = 1e9;
