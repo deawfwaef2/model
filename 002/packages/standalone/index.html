@@ -8274,7 +8274,7 @@ class OutputPass extends Pass {
 
   /* ------------------------------ 版本号 ------------------------------ */
   TL.VERSION = '1.0.0';
-  TL.BUILD = '2026-09-27 18:05 / none';
+  TL.BUILD = '2026-09-27 18:06 / none';
 
 })(typeof window !== 'undefined' ? window : this);
 
@@ -10194,13 +10194,24 @@ class OutputPass extends Pass {
       }
     }
 
-    /* ---------- 3. 头顶横管（把画面上方封住，增加压迫） ---------- */
-    [8.5, 21.5, 34.5, 47].forEach(function (ax, i) {
+    /* ---------- 3. 头顶横管 ----------
+       只架在远端（x ≥ 30）且抬到 13 米以上。
+       近处那几道在屏幕上会正好横穿泰坦胸口的弱点核心（实测两者都落在
+       画面 33% 高度），挡住瞄准，属于「好看但不能玩」，直接砍掉。
+       留在远端反而变成给裂隙做的取景框。 */
+    [31, 40, 49].forEach(function (ax, i) {
+      var y = 13.2 + (i % 2) * 1.6;
       for (var z = -ZH - 1.2; z <= ZH + 1.2; z += S) {
-        deck.push({ name: 'pipe-straight', pos: [ax, 7.2 + (i % 2) * 1.2, z], scale: S });
+        deck.push({ name: 'pipe-straight', pos: [ax, y, z], scale: S });
       }
-      deck.push({ name: 'pipe-ringhigh', pos: [ax, 7.2 + (i % 2) * 1.2, -ZH - 1.2], scale: S });
-      deck.push({ name: 'pipe-ringhigh', pos: [ax, 7.2 + (i % 2) * 1.2, ZH + 1.2], scale: S });
+      deck.push({ name: 'pipe-ringhigh', pos: [ax, y, -ZH - 1.2], scale: S });
+      deck.push({ name: 'pipe-ringhigh', pos: [ax, y, ZH + 1.2], scale: S });
+      // 吊装立柱，让横管有落点而不是凭空浮着
+      for (var sgn = -1; sgn <= 1; sgn += 2) {
+        for (var lv2 = 0; lv2 < 3; lv2++) {
+          deck.push({ name: 'pipe-supporthigh', pos: [ax, y - S * (lv2 + 1), sgn * (ZH + 1.2)], scale: S });
+        }
+      }
     });
 
     /* ---------- 4. 主角前哨 ---------- */
