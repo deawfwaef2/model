@@ -18,9 +18,9 @@
     SPEED_PER_LEVEL: 0.55,
     MAX_SPEED: 30,
     BULLET_SPEED: 78,
-    BASE_FIRE: 6.2,
-    BASE_DMG: 11,
-    BASE_HP: 100,
+    BASE_FIRE: 8.6,
+    BASE_DMG: 14,
+    BASE_HP: 110,
     MAGNET: 4.5,
     VIEW_FAR: 210
   };
@@ -37,12 +37,12 @@
   var UPG_ORDER = ['hp', 'dmg', 'rate', 'crit', 'magnet', 'shield', 'luck'];
 
   var ETYPE = {
-    walker:  { hp: 30,  spd: 6.4,  dmg: 12, col: 0x74a85c, emis: 0x1b3314, sc: 1.00, coin: 2, score: 10 },
-    runner:  { hp: 18,  spd: 12.6, dmg: 8,  col: 0xd2683a, emis: 0x3a1408, sc: 0.92, coin: 3, score: 15 },
-    crawler: { hp: 15,  spd: 10.4, dmg: 7,  col: 0xb3bd6a, emis: 0x2c3010, sc: 0.72, coin: 2, score: 12 },
-    brute:   { hp: 145, spd: 5.0,  dmg: 26, col: 0x9c4a70, emis: 0x33101f, sc: 1.75, coin: 12, score: 60 },
-    spitter: { hp: 42,  spd: 5.4,  dmg: 11, col: 0x4fc4a4, emis: 0x0d3a2e, sc: 1.05, coin: 5, score: 25 },
-    bomber:  { hp: 34,  spd: 8.2,  dmg: 30, col: 0xd8c040, emis: 0x3d3208, sc: 1.10, coin: 6, score: 30 }
+    walker:  { hp: 26,  spd: 6.6,  dmg: 9,  col: 0x8fd46a, emis: 0x2e5520, sc: 1.00, coin: 2, score: 10 },
+    runner:  { hp: 15,  spd: 12.8, dmg: 8,  col: 0xff8446, emis: 0x5e2208, sc: 0.92, coin: 3, score: 15 },
+    crawler: { hp: 12,  spd: 10.6, dmg: 6,  col: 0xd6e07a, emis: 0x4a5018, sc: 0.72, coin: 2, score: 12 },
+    brute:   { hp: 150, spd: 5.2,  dmg: 22, col: 0xc85c8c, emis: 0x551a33, sc: 1.75, coin: 12, score: 60 },
+    spitter: { hp: 38,  spd: 5.4,  dmg: 10, col: 0x5fe8c4, emis: 0x11604a, sc: 1.05, coin: 5, score: 25 },
+    bomber:  { hp: 30,  spd: 8.4,  dmg: 26, col: 0xffe14a, emis: 0x66540a, sc: 1.10, coin: 6, score: 30 }
   };
 
   var POWERS = [
@@ -123,11 +123,11 @@
     renderer = new TH.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(0x05070c, 1);
+    renderer.setClearColor(0x0b1220, 1);
     wrap.appendChild(renderer.domElement);
 
     scene = new TH.Scene();
-    scene.fog = new TH.Fog(0x0a1018, 55, CFG.VIEW_FAR);
+    scene.fog = new TH.Fog(0x141f33, 78, CFG.VIEW_FAR);
 
     camera = new TH.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.5, 520);
     camera.position.set(0, 8, 12);
@@ -137,14 +137,17 @@
     scene.add(world);
 
     // lights
-    var hemi = new TH.HemisphereLight(0x5577aa, 0x120a08, 0.85);
+    var hemi = new TH.HemisphereLight(0x89b4e8, 0x2a1a16, 1.35);
     scene.add(hemi);
-    var dir = new TH.DirectionalLight(0xbfd4ff, 0.75);
+    var dir = new TH.DirectionalLight(0xdce8ff, 1.15);
     dir.position.set(-8, 24, 10);
     scene.add(dir);
-    var rim = new TH.DirectionalLight(0xff4466, 0.45);
+    var rim = new TH.DirectionalLight(0xff5a70, 0.75);       // blood-moon rim
     rim.position.set(9, 8, -18);
     scene.add(rim);
+    var fill = new TH.DirectionalLight(0x66e0ff, 0.45);      // neon bounce from the curbs
+    fill.position.set(0, 3, 16);
+    scene.add(fill);
 
     muzzleLight = new TH.PointLight(0xffaa44, 0, 22, 2);
     scene.add(muzzleLight);
@@ -180,7 +183,19 @@
     MAT.bulletCore = new TH.MeshBasicMaterial({ color: 0xfff2b0 });
     MAT.bulletCrit = new TH.MeshBasicMaterial({ color: 0xff66aa });
     MAT.bulletGlow = new TH.MeshBasicMaterial({ color: 0xffcc44, transparent: true, opacity: 0.45, blending: TH.AdditiveBlending, depthWrite: false });
-    MAT.shadow = new TH.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false });
+    var sc = document.createElement('canvas'); sc.width = sc.height = 64;
+    var sg = sc.getContext('2d');
+    var rg = sg.createRadialGradient(32, 32, 0, 32, 32, 32);
+    rg.addColorStop(0, 'rgba(0,0,0,0.85)');
+    rg.addColorStop(0.55, 'rgba(0,0,0,0.42)');
+    rg.addColorStop(1, 'rgba(0,0,0,0)');
+    sg.fillStyle = rg; sg.fillRect(0, 0, 64, 64);
+    MAT.shadowTex = new TH.CanvasTexture(sc);
+    MAT.shadow = new TH.MeshBasicMaterial({
+      map: MAT.shadowTex, transparent: true, opacity: 0.55,
+      depthWrite: false, color: 0x000000
+    });
+    MAT.shadow.__shared = true;
     MAT.spark = new TH.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: TH.AdditiveBlending, depthWrite: false });
   }
 
@@ -239,7 +254,7 @@
     var g = new TH.Group();
     var L = CFG.SEG_LEN, W = CFG.ROAD_HALF * 2;
 
-    var road = new TH.Mesh(GEO.box, new TH.MeshLambertMaterial({ color: 0x23262e }));
+    var road = new TH.Mesh(GEO.box, new TH.MeshLambertMaterial({ color: 0x33373f }));
     road.scale.set(W, 0.6, L); road.position.y = -0.3;
     g.add(road);
 
@@ -252,7 +267,7 @@
     }
     // neon curbs
     [-1, 1].forEach(function (s) {
-      var curb = new TH.Mesh(GEO.box, new TH.MeshLambertMaterial({ color: 0x1a1d24 }));
+      var curb = new TH.Mesh(GEO.box, new TH.MeshLambertMaterial({ color: 0x272b34 }));
       curb.scale.set(1.1, 1.0, L);
       curb.position.set(s * (CFG.ROAD_HALF + 0.55), 0.2, 0);
       g.add(curb);
@@ -271,13 +286,13 @@
       var m;
       if (t < 0.45) {                      // ruined building
         var h = 8 + Math.random() * 26;
-        m = new TH.Mesh(GEO.box, new TH.MeshLambertMaterial({ color: new TH.Color().setHSL(0.6, 0.12, 0.09 + Math.random() * 0.07) }));
+        m = new TH.Mesh(GEO.box, new TH.MeshLambertMaterial({ color: new TH.Color().setHSL(0.6, 0.16, 0.16 + Math.random() * 0.09) }));
         m.scale.set(6 + Math.random() * 9, h, 6 + Math.random() * 10);
         m.position.set(side * (CFG.ROAD_HALF + 6 + Math.random() * 16), h / 2 - 1, -L / 2 + Math.random() * L);
         // lit windows
         for (var wI = 0; wI < 5; wI++) {
           var win = new TH.Mesh(GEO.plane, new TH.MeshBasicMaterial({
-            color: Math.random() < 0.5 ? 0xffb347 : 0x47b6ff, transparent: true, opacity: 0.6 + Math.random() * 0.4
+            color: Math.random() < 0.5 ? 0xffcf7a : 0x7fd0ff, transparent: true, opacity: 0.75 + Math.random() * 0.25, fog: false
           }));
           win.scale.set(0.9, 1.3, 1);
           win.position.set(-side * (m.scale.x / 2 + 0.06) * side, (Math.random() - 0.3) * m.scale.y * 0.7, (Math.random() - 0.5) * m.scale.z * 0.7);
@@ -396,9 +411,9 @@
     muzzleFlash = new TH.Mesh(GEO.cone, new TH.MeshBasicMaterial({
       color: 0xffdd77, transparent: true, opacity: 0, blending: TH.AdditiveBlending, depthWrite: false
     }));
-    muzzleFlash.scale.set(0.8, 1.4, 0.8);
+    muzzleFlash.scale.set(0.30, 0.55, 0.30);
     muzzleFlash.rotation.x = Math.PI / 2;
-    muzzleFlash.position.set(0, 0, 1.9);
+    muzzleFlash.position.set(0, 0, 1.45);
     gunR.add(muzzleFlash);
 
     // blob shadow
@@ -471,6 +486,38 @@
   }
 
   /* ------------------------------------------------------------ ENEMY MODEL */
+  /* Enemy rigs are pooled per type. Building ~14 meshes + 3 materials for
+     every zombie would thrash the GC once the horde gets thick, so dead
+     zombies are reset and recycled instead of disposed. */
+  var EPOOL = {};
+
+  function acquireEnemyModel(type) {
+    var arr = EPOOL[type] || (EPOOL[type] = []);
+    var g = arr.pop();
+    if (!g) return makeEnemyModel(type);
+    var d = ETYPE[type];
+    g.scale.setScalar(d.sc);
+    g.rotation.set(0, 0, 0);
+    g.position.set(0, 0, 0);
+    g.visible = true;
+    var pt = g.userData.parts;
+    pt.mats.forEach(function (m, k) { m.emissive.setHex(k === 2 ? 0x2a0808 : d.emis); });
+    pt.lL.rotation.set(0, 0, 0); pt.lR.rotation.set(0, 0, 0);
+    pt.aL.rotation.set(-1.15, 0, 0); pt.aR.rotation.set(-1.15, 0, 0);
+    pt.torso.rotation.set(type === 'crawler' ? 1.2 : 0, 0, 0);
+    return g;
+  }
+
+  function releaseEnemy(e) {
+    var t = e.userData.type;
+    if (e.userData.boss || !ETYPE[t]) { disposeGroup(e); return; }
+    var arr = EPOOL[t] || (EPOOL[t] = []);
+    if (arr.length >= 30) { disposeGroup(e); return; }
+    var parts = e.userData.parts;
+    e.userData = { parts: parts, type: t };
+    arr.push(e);
+  }
+
   function makeEnemyModel(type) {
     var d = ETYPE[type];
     var g = new TH.Group();
@@ -574,16 +621,16 @@
     var spr = new TH.Sprite(new TH.SpriteMaterial({
       map: makeLabelTexture(power.label, '#' + new TH.Color(col).getHexString()), depthTest: false, transparent: true
     }));
-    spr.scale.set(6.2, 1.55, 1);
-    spr.position.y = 2.6;
+    spr.scale.set(4.3, 1.08, 1);
+    spr.position.y = 2.75;
     g.add(spr);
 
     // hp bar
     var barBg = new TH.Mesh(GEO.plane, new TH.MeshBasicMaterial({ color: 0x220000, depthTest: false, transparent: true, opacity: 0.8 }));
-    barBg.scale.set(3.0, 0.3, 1); barBg.position.y = 1.85;
+    barBg.scale.set(2.6, 0.26, 1); barBg.position.y = 1.95;
     g.add(barBg);
     var barFg = new TH.Mesh(GEO.plane, new TH.MeshBasicMaterial({ color: col, depthTest: false }));
-    barFg.scale.set(2.9, 0.2, 1); barFg.position.y = 1.85; barFg.position.z = 0.01;
+    barFg.scale.set(2.5, 0.17, 1); barFg.position.y = 1.95; barFg.position.z = 0.01;
     g.add(barFg);
 
     g.position.set(side * (CFG.ROAD_HALF - 2.1), 2.4, z);
@@ -617,7 +664,7 @@
       kills: 0, coinsRun: 0, score: 0,
       combo: 0, comboT: 0, streakIdx: 0,
       fireT: 0, iframe: 0, freeze: 0,
-      spawnT: 1.2, crateT: 2.5,
+      spawnT: 0.8, crateT: 2.2,
       boss: null, bossPhase: 0, bossPending: isBossLevel(level),
       bossSpawned: false,
       finished: false, dead: false,
@@ -685,10 +732,42 @@
     ray.setFromCamera(pointer.ndc, camera);
     aimPlane.constant = -(player.position.y + 1.35);
     var hit = ray.ray.intersectPlane(aimPlane, aimPoint);
-    if (!hit) { aimDir.set(0, 0, -1); return; }
-    aimDir.set(aimPoint.x - player.position.x, 0, aimPoint.z - player.position.z);
-    if (aimDir.lengthSq() < 0.001) aimDir.set(0, 0, -1);
+    if (hit) {
+      aimDir.set(aimPoint.x - player.position.x, 0, aimPoint.z - player.position.z);
+    } else {
+      // pointer is above the horizon -> aim along the camera ray's ground
+      // projection instead of snapping to straight-forward (avoids a jarring flick)
+      aimDir.set(ray.ray.direction.x, 0, ray.ray.direction.z);
+    }
+    if (aimDir.lengthSq() < 0.0001) aimDir.set(0, 0, -1);
     aimDir.normalize();
+
+    /* --- aim assist ---------------------------------------------------
+     * Gentle magnetism toward whatever is closest to the crosshair. Makes
+     * touch aiming feel accurate without ever taking control away: it only
+     * engages inside a ~12 degree cone and never snaps fully. */
+    if (state !== 'playing' || !R) return;
+    var curAng = Math.atan2(aimDir.x, aimDir.z);
+    var best = null, bestScore = 1e9;
+    var CONE = 0.28;
+    for (var i = 0; i < enemies.length; i++) {
+      var e = enemies[i];
+      if (e.userData.dead) continue;
+      var dx = e.position.x - player.position.x, dz = e.position.z - player.position.z;
+      var d = Math.hypot(dx, dz);
+      if (d > 58 || d < 2.5) continue;
+      var a = Math.atan2(dx, dz);
+      var diff = Math.abs(((a - curAng + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI);
+      if (diff > CONE) continue;
+      var score = diff * 5 + d * 0.012 - (e.userData.boss ? 0.4 : 0);
+      if (score < bestScore) { bestScore = score; best = { x: dx / d, z: dz / d, diff: diff }; }
+    }
+    if (best) {
+      var k = 0.55 * (1 - best.diff / CONE);
+      aimDir.x += (best.x - aimDir.x) * k;
+      aimDir.z += (best.z - aimDir.z) * k;
+      aimDir.normalize();
+    }
   }
 
   /* ========================================================== FX */
@@ -800,7 +879,7 @@
     AE.shoot(R.dmgMul);
     AE.shell();
     muzzleFlash.material.opacity = 1;
-    muzzleFlash.scale.set(0.7 + Math.random() * 0.5, 1.2 + Math.random() * 0.7, 0.7 + Math.random() * 0.5);
+    muzzleFlash.scale.set(0.26 + Math.random() * 0.13, 0.42 + Math.random() * 0.3, 0.26 + Math.random() * 0.13);
     muzzleLight.intensity = 3.2;
     muzzleLight.position.set(
       player.position.x + aimDir.x * 2.2,
@@ -857,7 +936,7 @@
         if (tgt) {
           var tx = tgt.position.x - b.position.x, tz = tgt.position.z - b.position.z;
           var l = Math.hypot(tx, tz) || 1;
-          var hs = 5.5 * R.homing * dt * CFG.BULLET_SPEED / 60;
+          var hs = 4.2 * R.homing * dt;
           u.vx += (tx / l) * CFG.BULLET_SPEED * hs;
           u.vz += (tz / l) * CFG.BULLET_SPEED * hs;
           var sp = Math.hypot(u.vx, u.vz) || 1;
@@ -867,45 +946,55 @@
         }
       }
 
-      b.position.x += u.vx * dt;
-      b.position.z += u.vz * dt;
+      // --- swept movement: never step further than SUB units per check, so a
+      // --- fast bullet can never tunnel through a small enemy hitbox.
+      var mvx = u.vx * dt, mvz = u.vz * dt;
+      var dist = Math.hypot(mvx, mvz);
+      var SUB = 0.9;
+      var steps = Math.max(1, Math.min(24, Math.ceil(dist / SUB)));
+      var sx = mvx / steps, sz = mvz / steps;
+      var dead = false;
 
-      if (Math.abs(b.position.x) > CFG.ROAD_HALF + 26 ||
-        b.position.z > player.position.z + 40 || b.position.z < player.position.z - 130) {
-        killBullet(i); continue;
-      }
+      for (var st = 0; st < steps && !dead; st++) {
+        b.position.x += sx;
+        b.position.z += sz;
 
-      var consumed = false;
-      // enemies
-      for (var j = enemies.length - 1; j >= 0; j--) {
-        var e = enemies[j];
-        if (e.userData.dead) continue;
-        if (u.hitSet.indexOf(e.id) >= 0) continue;
-        var r = e.userData.rad;
-        var dx = e.position.x - b.position.x, dz = e.position.z - b.position.z;
-        if (dx * dx + dz * dz < r * r) {
-          hitEnemy(e, u.dmg, u.crit, u.vx, u.vz);
-          u.hitSet.push(e.id);
-          if (u.pierce > 0) { u.pierce--; u.dmg *= 0.82; }
-          else { consumed = true; }
-          break;
+        if (Math.abs(b.position.x) > CFG.ROAD_HALF + 26 ||
+          b.position.z > player.position.z + 40 || b.position.z < player.position.z - 130) {
+          dead = true; break;
+        }
+
+        // enemies
+        for (var j = enemies.length - 1; j >= 0; j--) {
+          var e = enemies[j];
+          if (e.userData.dead) continue;
+          if (u.hitSet.indexOf(e.userData.uid) >= 0) continue;
+          var r = e.userData.rad;
+          var dx = e.position.x - b.position.x, dz = e.position.z - b.position.z;
+          if (dx * dx + dz * dz < r * r) {
+            hitEnemy(e, u.dmg, u.crit, u.vx, u.vz);
+            u.hitSet.push(e.userData.uid);
+            if (u.pierce > 0) { u.pierce--; u.dmg *= 0.82; }
+            else { dead = true; }
+            break;
+          }
+        }
+        if (dead) break;
+
+        // crates
+        for (var c = crates.length - 1; c >= 0; c--) {
+          var cr = crates[c];
+          if (cr.userData.dead) continue;
+          var cdx = cr.position.x - b.position.x, cdz = cr.position.z - b.position.z;
+          if (cdx * cdx + cdz * cdz < 2.2 * 2.2 && Math.abs(cr.position.y - 1.42) < 2.4) {
+            hitCrate(cr, u.dmg, b.position.x, b.position.z);
+            if (u.pierce > 0) { u.pierce--; } else { dead = true; }
+            break;
+          }
         }
       }
-      if (consumed) { killBullet(i); continue; }
 
-      // crates
-      for (var c = crates.length - 1; c >= 0; c--) {
-        var cr = crates[c];
-        if (cr.userData.dead) continue;
-        var cdx = cr.position.x - b.position.x, cdz = cr.position.z - b.position.z;
-        var cdy = cr.position.y - 1.42;
-        if (cdx * cdx + cdz * cdz < 2.2 * 2.2 && Math.abs(cdy) < 2.4) {
-          hitCrate(cr, u.dmg, b.position.x, b.position.z);
-          if (u.pierce > 0) { u.pierce--; } else { consumed = true; }
-          break;
-        }
-      }
-      if (consumed) killBullet(i);
+      if (dead) killBullet(i);
     }
   }
 
@@ -923,9 +1012,10 @@
 
   /* ========================================================== ENEMIES */
   var enemyId = 1;
+  var _hits = 0;
   function spawnEnemy(type, x, z, isBossAdd) {
     var d = ETYPE[type];
-    var g = makeEnemyModel(type);
+    var g = acquireEnemyModel(type);
     g.position.set(x, 0, z);
     var lvlScale = 1 + (R.level - 1) * 0.145;
     g.userData.type = type;
@@ -941,7 +1031,7 @@
     g.userData.slow = 0;
     g.userData.kb = { x: 0, z: 0 };
     g.userData.add = !!isBossAdd;
-    g.id = enemyId++;
+    g.userData.uid = enemyId++;
     world.add(g);
     enemies.push(g);
     if (Math.random() < 0.25) AE.zombieGrowl(type === 'brute');
@@ -951,6 +1041,7 @@
   function hitEnemy(e, dmg, crit, vx, vz) {
     var u = e.userData;
     if (u.dead) return;
+    _hits++;
     u.hp -= dmg;
     u.hitT = 0.11;
     var kbf = (u.type === 'brute' || u.boss) ? 0.06 : 0.3;
@@ -981,7 +1072,7 @@
     R.kills++;
     save.totalKills++;
     R.combo++;
-    R.comboT = 2.6;
+    R.comboT = 3.0;
     R.score += Math.round((d.score || 10) * (1 + R.combo * 0.06));
 
     // streak announce
@@ -1012,7 +1103,7 @@
     var idx = enemies.indexOf(e);
     if (idx >= 0) enemies.splice(idx, 1);
     world.remove(e);
-    disposeGroup(e);
+    releaseEnemy(e);
 
     if (u.boss) onBossDead();
   }
@@ -1148,14 +1239,14 @@
           killEnemy(e, 0, 0);
         } else {
           damagePlayer(u.dmg);
-          u.kb.x = -nx * 0.7; u.kb.z = -nz * 0.7;
+          u.kb.x = -nx * 1.35; u.kb.z = -nz * 1.35;
         }
       }
 
       // despawn behind
       if (e.position.z > pz + 34) {
         enemies.splice(i, 1);
-        world.remove(e); disposeGroup(e);
+        world.remove(e); releaseEnemy(e);
       }
     }
   }
@@ -1231,7 +1322,7 @@
     g.userData.mode = 'chase';
     g.userData.modeT = 0;
     g.userData.kb = { x: 0, z: 0 };
-    g.id = enemyId++;
+    g.userData.uid = enemyId++;
     world.add(g);
     enemies.push(g);
     R.boss = g;
@@ -1408,8 +1499,8 @@
     burst(bx, cr.position.y, bz, u.power.color, 4, 6, 0.14, 0.3);
     floatText(cr.position.x, cr.position.y + 1.1, cr.position.z, Math.round(dmg), 'crate', 0.8);
     var f = Math.max(0, u.hp / u.maxHp);
-    u.barFg.scale.x = 2.9 * f;
-    u.barFg.position.x = -(2.9 * (1 - f)) / 2;
+    u.barFg.scale.x = 2.5 * f;
+    u.barFg.position.x = -(2.5 * (1 - f)) / 2;
     cr.scale.setScalar(1 + (1 - f) * 0.04);
     if (u.hp <= 0 && !u.dead) breakCrate(cr);
   }
@@ -1501,27 +1592,29 @@
     if (R.spawnT > 0) return;
 
     var L = R.level;
-    var density = 1 + L * 0.1;
-    var interval = Math.max(0.42, 1.55 - L * 0.055);
-    R.spawnT = interval * (0.7 + Math.random() * 0.6);
+    if (enemies.length > 62) { R.spawnT = 0.5; return; }   // hard safety cap
 
-    var count = 1 + Math.floor(Math.random() * Math.min(4, 1 + L * 0.22));
+    var ease = (L === 1) ? 1.12 : (L === 2 ? 1.05 : 1);   // onboarding ramp
+    var interval = Math.max(0.34, 1.22 - L * 0.048) * ease;
+    R.spawnT = interval * (0.75 + Math.random() * 0.5);
+
+    var count = 1 + Math.floor(Math.random() * (2 + L * 0.28) / (L < 3 ? 1.12 : 1));
     var progress = R.dist / R.target;
 
     for (var i = 0; i < count; i++) {
       var t = pickType(L, progress);
       var x = clampRoad((Math.random() - 0.5) * CFG.ROAD_HALF * 2);
-      var z = player.position.z - (46 + Math.random() * 34);
-      // occasionally spawn from behind to keep pressure
-      if (Math.random() < 0.13 && L > 2) z = player.position.z + 26 + Math.random() * 10;
+      var z = player.position.z - (36 + Math.random() * 44);
+      // occasionally spawn from behind to keep pressure from every side
+      if (Math.random() < 0.11 && L > 2) z = player.position.z + 26 + Math.random() * 10;
       spawnEnemy(t, x, z, false);
     }
 
-    // formations
-    if (Math.random() < 0.13 + L * 0.012) {
-      var fz = player.position.z - (58 + Math.random() * 20);
+    // set-piece formations: a wall of bodies straight across the highway
+    if (Math.random() < (L < 3 ? 0.16 : 0.2) + L * 0.012) {
+      var fz = player.position.z - (54 + Math.random() * 22);
       for (var k = -3; k <= 3; k++) {
-        spawnEnemy(Math.random() < 0.5 ? 'walker' : 'runner', clampRoad(k * 2.5), fz + Math.abs(k) * 1.6, false);
+        spawnEnemy(Math.random() < 0.55 ? 'walker' : 'runner', clampRoad(k * 2.5), fz + Math.abs(k) * 1.6, false);
       }
       AE.zombieGrowl(true);
     }
@@ -1545,7 +1638,7 @@
   function spawnCrates(dt) {
     R.crateT -= dt;
     if (R.crateT > 0) return;
-    R.crateT = 7.5 + Math.random() * 3.5;
+    R.crateT = 6.0 + Math.random() * 2.5;
     if (R.boss) return;
 
     var z = player.position.z - 62;
@@ -1582,8 +1675,8 @@
     }
     R.hp -= dmg;
     R.hitTaken++;
-    R.iframe = 0.62;
-    R.combo = 0;
+    R.iframe = 0.8;
+    R.combo = Math.floor(R.combo * 0.4);
     AE.playerHurt();
     doShake(0.45); doHitStop(0.04);
     flashScreen('#ff0022', 0.4, 0.3);
@@ -1625,7 +1718,7 @@
     if (R.combo >= 2) {
       dom.comboWrap.classList.add('on');
       dom.comboNum.textContent = R.combo;
-      dom.comboBar.style.width = Math.max(0, Math.min(1, R.comboT / 2.6)) * 100 + '%';
+      dom.comboBar.style.width = Math.max(0, Math.min(1, R.comboT / 3.0)) * 100 + '%';
       var s = 1 + Math.min(0.5, R.combo * 0.012);
       dom.comboWrap.style.setProperty('--cs', s);
     } else {
@@ -1659,9 +1752,15 @@
 
   function beginLevel() {
     hideAllScreens();
+    showMenuCrowd(false);
     show(dom.hud);
     state = 'playing';
     player.position.set(0, 0, 0);
+    player.rotation.set(0, 0, 0);
+    playerGroup.rotation.set(0, 0, 0);     // clear the main-menu turntable
+    playerGroup.position.set(0, 0, 0);
+    aimPivot.rotation.set(0, Math.PI, 0);  // face down the road immediately
+    aimPivot.position.set(0, 0, 0);
     camera.position.set(0, 8, 12);
     segments.forEach(function (s, i) { s.position.z = -i * CFG.SEG_LEN; });
     updateHud();
@@ -1677,7 +1776,7 @@
 
   function clearRun() {
     var i;
-    for (i = enemies.length - 1; i >= 0; i--) { world.remove(enemies[i]); disposeGroup(enemies[i]); }
+    for (i = enemies.length - 1; i >= 0; i--) { world.remove(enemies[i]); releaseEnemy(enemies[i]); }
     enemies.length = 0;
     for (i = crates.length - 1; i >= 0; i--) { world.remove(crates[i]); disposeGroup(crates[i]); }
     crates.length = 0;
@@ -1807,6 +1906,7 @@
     hideAllScreens();
     hide(dom.hud);
     show(dom.screenMenu);
+    showMenuCrowd(true);
     AE.musicStart('menu');
     AE.musicSetMode('menu');
     AE.musicSetIntensity(0);
@@ -1902,7 +2002,7 @@
     updateTexts(raw);
 
     if (muzzleFlash.material.opacity > 0) {
-      muzzleFlash.material.opacity = Math.max(0, muzzleFlash.material.opacity - raw * 12);
+      muzzleFlash.material.opacity = Math.max(0, muzzleFlash.material.opacity - raw * 26);
     }
     muzzleLight.intensity = Math.max(0, muzzleLight.intensity - raw * 22);
     if (shieldMesh.material.opacity > 0.001) {
@@ -1927,12 +2027,41 @@
   }
   var ringOn = true;
 
+  /* ---- attract-mode diorama: the survivor is surrounded, slowly turning ---- */
+  var menuCrowd = [];
+  function buildMenuCrowd() {
+    if (menuCrowd.length) return;
+    var types = ['walker', 'runner', 'walker', 'crawler', 'walker', 'brute', 'runner', 'spitter'];
+    for (var i = 0; i < types.length; i++) {
+      var g = makeEnemyModel(types[i]);
+      var a = (i / types.length) * Math.PI * 2 + Math.random() * 0.4;
+      var r = 11 + Math.random() * 6;
+      g.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+      g.userData.ang = a;
+      g.userData.rad = r;
+      g.userData.ph = Math.random() * 6.28;
+      g.userData.sp = 0.09 + Math.random() * 0.1;
+      scene.add(g);
+      menuCrowd.push(g);
+    }
+  }
+  function showMenuCrowd(v) {
+    buildMenuCrowd();
+    for (var i = 0; i < menuCrowd.length; i++) menuCrowd[i].visible = v;
+  }
+
   function tickMenu(dt) {
-    // slow cinematic orbit around the hero
     tGlobal += dt;
-    var a = tGlobal * 0.22;
-    camera.position.set(Math.sin(a) * 11, 5.2 + Math.sin(tGlobal * 0.5) * 0.7, Math.cos(a) * 11);
-    camera.lookAt(0, 1.8, 0);
+    var a = tGlobal * 0.19;
+    var cx = Math.sin(a) * 9.2, cz = Math.cos(a) * 9.2;
+    camera.position.set(cx, 3.6 + Math.sin(tGlobal * 0.5) * 0.4, cz);
+    // Aim at a point offset along the camera's own right vector, so the hero
+    // always sits in the lower-LEFT of frame (clear of the title + buttons)
+    // no matter where the turntable is in its orbit.
+    var fl = Math.hypot(cx, cz) || 1;
+    var rx = cz / fl, rz = -cx / fl;
+    camera.lookAt(rx * 3.4, 3.0, rz * 3.4);
+
     playerGroup.rotation.y = a + Math.PI;
     aimPivot.rotation.y = Math.sin(tGlobal * 0.7) * 0.35;
     var sw = Math.sin(tGlobal * 7);
@@ -1940,6 +2069,19 @@
     armL.rotation.x = -sw * 0.5;
     player.position.set(0, Math.abs(Math.sin(tGlobal * 7)) * 0.08, 0);
     playerLight.position.set(0, 3, 2);
+
+    for (var i = 0; i < menuCrowd.length; i++) {
+      var g = menuCrowd[i], u = g.userData;
+      u.ang += u.sp * dt;
+      u.rad += Math.sin(tGlobal * 0.4 + u.ph) * 0.006;
+      g.position.set(Math.cos(u.ang) * u.rad, Math.abs(Math.sin(tGlobal * 3 + u.ph)) * 0.08, Math.sin(u.ang) * u.rad);
+      g.rotation.y = Math.atan2(-g.position.x, -g.position.z);
+      var s2 = Math.sin(tGlobal * 3 + u.ph);
+      if (u.parts) {
+        u.parts.lL.rotation.x = s2 * 0.6; u.parts.lR.rotation.x = -s2 * 0.6;
+        u.parts.aL.rotation.z = s2 * 0.18; u.parts.aR.rotation.z = -s2 * 0.18;
+      }
+    }
   }
 
   function tickIdle(dt) {
@@ -2238,5 +2380,46 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
-  window.ZR = { get state() { return state; }, get run() { return R; }, save: save };
+  window.ZR = {
+    get state() { return state; },
+    get run() { return R; },
+    save: save,
+    get dbg() {
+      return {
+        enemies: enemies.length, bullets: bullets.length, crates: crates.length,
+        coins: coins.length, parts: parts.length, eprojs: eprojs.length,
+        poolBullet: POOL.bullet.length, poolPart: POOL.part.length,
+        aim: [aimDir.x.toFixed(2), aimDir.z.toFixed(2)],
+        hitCount: _hits,
+        es: enemies.slice(0, 6).map(function (e) {
+          return { t: e.userData.type, hp: Math.round(e.userData.hp),
+                   dx: +(e.position.x - player.position.x).toFixed(1),
+                   dz: +(e.position.z - player.position.z).toFixed(1) };
+        }),
+        bs: bullets.slice(0, 5).map(function (b) {
+          return { dx: +(b.position.x - player.position.x).toFixed(1),
+                   dz: +(b.position.z - player.position.z).toFixed(1),
+                   l: +b.userData.life.toFixed(2) };
+        }),
+        px: player.position.x.toFixed(1), pz: player.position.z.toFixed(1),
+        pivotY: +aimPivot.rotation.y.toFixed(3), groupY: +playerGroup.rotation.y.toFixed(3)
+      };
+    },
+    _force: function (k, v) { if (R) R[k] = v; },
+    /* test hook: screen-space position of the nearest enemy ahead */
+    _targetScreen: function () {
+      var best = null, bd = 1e9;
+      for (var i = 0; i < enemies.length; i++) {
+        var e = enemies[i];
+        if (e.userData.dead) continue;
+        var dz = e.position.z - player.position.z;
+        if (dz > -3) continue;
+        var d = Math.hypot(e.position.x - player.position.x, dz);
+        if (d < bd) { bd = d; best = e; }
+      }
+      if (!best) return null;
+      var v = new TH.Vector3(best.position.x, 1.2, best.position.z).project(camera);
+      return [(v.x * 0.5 + 0.5) * window.innerWidth, (-v.y * 0.5 + 0.5) * window.innerHeight];
+    }
+  };
 })();
