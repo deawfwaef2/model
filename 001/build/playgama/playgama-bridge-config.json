@@ -1,0 +1,25 @@
+{
+  "platforms": {
+    "playgama": {},
+    "crazy_games": {},
+    "yandex": {},
+    "msn": {}
+  },
+  "advertisement": {
+    "interstitial": {
+      "minimumDelayBetweenInterstitial": 45
+    },
+    "placements": {
+      "rewarded": [
+        "double_coins",
+        "revive",
+        "free_chest",
+        "daily_double",
+        "start_amp"
+      ],
+      "interstitial": [
+        "level_start"
+      ]
+    }
+  }
+}
