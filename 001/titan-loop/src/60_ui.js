@@ -523,7 +523,16 @@
     var rr = h('div', 'set-row');
     rr.appendChild(h('div', 'lb', t('resetSave')));
     var br = h('button', 'btn mini ghost', '⟲');
-    on(br, function () { if (root.confirm(t('resetConfirm'))) { TL.save.reset(); root.location.reload(); } });
+    on(br, function () {
+      // 沙箱 iframe 里 confirm() 会抛异常，做降级：二次点击确认
+      var ok = false;
+      try { ok = root.confirm(t('resetConfirm')); }
+      catch (e) {
+        if (br.dataset.armed === '1') ok = true;
+        else { br.dataset.armed = '1'; br.textContent = '⚠ ' + t('resetConfirm'); TL.audio.play('deny'); return; }
+      }
+      if (ok) { TL.save.reset(); try { root.location.reload(); } catch (e2) { renderSettings(); U.toast('✓', '#3fd2ff'); } }
+    });
     rr.appendChild(br); body.appendChild(rr);
 
     var ver = h('div');

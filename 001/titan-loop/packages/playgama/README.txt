@@ -1,5 +1,5 @@
 TITAN LOOP — 10 Seconds to Kill a God
-build: 2026-09-27 17:22
+build: 2026-09-27 17:23
 
 Single self-contained index.html. No external assets, no build step, no network required
 for the game itself (three.js r160 MIT is inlined).
