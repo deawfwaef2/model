@@ -1,0 +1,26 @@
+{
+  "platforms": {},
+  "advertisement": {
+    "interstitial": {
+      "preloadOnStart": true,
+      "placements": [
+        { "id": "level_complete" }
+      ]
+    },
+    "rewarded": {
+      "preloadOnStart": true,
+      "placements": [
+        { "id": "reward" }
+      ]
+    },
+    "banner": {
+      "placements": [
+        { "id": "menu" },
+        { "id": "shop" }
+      ]
+    },
+    "useBuiltInErrorPopup": true
+  },
+  "payments": [],
+  "leaderboards": []
+}

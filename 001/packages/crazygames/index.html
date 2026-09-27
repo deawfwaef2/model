@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07090f">
+<meta name="description" content="ZOMBIE RUSH 3D — sprint through a fallen city and blast the undead horde. Aim anywhere, upgrade everything, survive the Devourer.">
+<!-- build: CrazyGames -->
+<title>ZOMBIE RUSH 3D — Undead Highway</title>
+<style>
+/* ============================================================ BASE */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#05070c;
+  font-family:"Segoe UI Black","Arial Black",Impact,"PingFang SC","Microsoft YaHei",sans-serif;
+  color:#eaf2ff;user-select:none;-webkit-user-select:none;touch-action:none}
+#canvasWrap{position:fixed;inset:0}
+canvas{display:block;width:100%;height:100%}
+
+:root{
+  --acid:#8fff3a; --blood:#ff2b45; --cyan:#35e0ff; --gold:#ffd23f; --violet:#b25cff;
+  --panel:rgba(9,13,22,.93);
+}
+
+/* ============================================================ LAYERS */
+#ui{position:fixed;inset:0;pointer-events:none;z-index:10}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+  pointer-events:auto;padding:max(14px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom));
+  overflow-y:auto}
+.screen.on{display:flex;animation:fadein .28s ease-out}
+@keyframes fadein{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:40;mix-blend-mode:screen}
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:12;opacity:0;transition:opacity .2s;
+  background:radial-gradient(ellipse at center,transparent 38%,rgba(150,0,15,.16) 62%,rgba(190,0,20,.82) 100%)}
+#dmgFlash{position:fixed;inset:0;pointer-events:none;z-index:13;opacity:0;
+  background:radial-gradient(ellipse at center,transparent 45%,rgba(255,0,30,.75) 115%)}
+#dmgFlash.hit{animation:dmgpulse .45s ease-out}
+@keyframes dmgpulse{0%{opacity:.95}100%{opacity:0}}
+#fxLayer{position:fixed;inset:0;pointer-events:none;z-index:20;overflow:hidden}
+
+/* ============================================================ SCANLINE / GRAIN */
+#ui::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.22;z-index:1;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.34) 0 1px,transparent 1px 3px)}
+
+/* ============================================================ BUTTONS */
+.btn{pointer-events:auto;position:relative;border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  gap:10px;font-family:inherit;font-size:20px;letter-spacing:1.5px;color:#0a0d14;
+  padding:16px 30px;border-radius:14px;background:linear-gradient(180deg,#b6ff4a,#5ecb18);
+  box-shadow:0 6px 0 #2f6b0c,0 12px 26px rgba(120,255,60,.3);
+  transition:transform .08s,box-shadow .08s,filter .15s;text-transform:uppercase;white-space:nowrap}
+.btn:active{transform:translateY(5px);box-shadow:0 1px 0 #2f6b0c,0 5px 14px rgba(120,255,60,.25)}
+.btn:disabled{filter:grayscale(.75) brightness(.7);cursor:default}
+.btn.big{font-size:27px;padding:20px 54px;border-radius:17px}
+.btn.ghost{background:linear-gradient(180deg,#2b3446,#18202e);color:#cfe0f5;box-shadow:0 5px 0 #0b1018,0 10px 20px rgba(0,0,0,.5)}
+.btn.ghost:active{box-shadow:0 1px 0 #0b1018}
+.btn.red{background:linear-gradient(180deg,#ff6a6a,#d2102c);color:#fff;box-shadow:0 6px 0 #71020f,0 12px 26px rgba(255,40,60,.32)}
+.btn.red:active{box-shadow:0 1px 0 #71020f}
+.btn.gold{background:linear-gradient(180deg,#ffe27a,#f5a30b);color:#2a1a00;box-shadow:0 6px 0 #8a5600,0 12px 26px rgba(255,180,20,.34)}
+.btn.gold:active{box-shadow:0 1px 0 #8a5600}
+.btn.ad{background:linear-gradient(180deg,#ffd76a,#ff9d17);color:#2a1700;
+  box-shadow:0 6px 0 #8f4f00,0 0 0 2px rgba(255,255,255,.14) inset,0 12px 30px rgba(255,150,0,.4)}
+.btn.ad:active{box-shadow:0 1px 0 #8f4f00}
+.btn.ad::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.55) 45%,transparent 60%);
+  background-size:260% 100%;animation:shine 2.4s linear infinite}
+@keyframes shine{0%{background-position:160% 0}100%{background-position:-60% 0}}
+.btn.ad.done{background:linear-gradient(180deg,#8fe08f,#3f9b3f);box-shadow:0 6px 0 #1f5a1f;color:#04240a}
+.btn.ad.done::before{display:none}
+.adico{display:inline-block;background:#2a1700;color:#ffd76a;border-radius:6px;padding:1px 7px;font-size:15px}
+.btn.nope{animation:nope .3s}
+@keyframes nope{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+
+.iconbtn{pointer-events:auto;width:46px;height:46px;border:0;border-radius:12px;cursor:pointer;
+  background:rgba(12,18,30,.82);color:#cfe3ff;font-size:20px;display:flex;align-items:center;justify-content:center;
+  border:1px solid rgba(120,180,255,.2)}
+.iconbtn.off{opacity:.42}
+
+/* ============================================================ LOADING */
+#screenLoad{display:flex;background:radial-gradient(ellipse at 50% 35%,#16243c 0%,#05070c 70%);z-index:60;position:fixed}
+#screenLoad .lgo{font-size:clamp(34px,9vw,84px);line-height:.95;text-align:center;
+  background:linear-gradient(180deg,#fff 20%,#ff4a3a 55%,#7a0d0d 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 18px rgba(255,60,30,.55));letter-spacing:2px}
+#loadBarWrap{width:min(420px,78vw);height:12px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden;margin-top:26px;
+  border:1px solid rgba(255,255,255,.12)}
+#loadBar{height:100%;width:0;background:linear-gradient(90deg,#8fff3a,#35e0ff);transition:width .25s}
+#loadPct{margin-top:10px;font-size:14px;letter-spacing:3px;color:#7f93ad}
+.loadtip{margin-top:22px;font-size:13px;color:#61748c;max-width:420px;text-align:center;line-height:1.7;font-family:system-ui,sans-serif}
+
+/* ============================================================ MENU */
+#screenMenu{background:
+  radial-gradient(ellipse 70% 50% at 50% 12%,rgba(255,40,20,.22),transparent 70%),
+  linear-gradient(180deg,rgba(3,5,10,.86) 0%,rgba(3,5,10,.34) 45%,rgba(3,5,10,.92) 100%)}
+.title{text-align:center;margin-top:6px}
+.title .t1{font-size:clamp(40px,11vw,108px);line-height:.88;letter-spacing:-1px;
+  background:linear-gradient(180deg,#ffffff 12%,#ffe27a 38%,#ff4a1e 68%,#8a0f0f 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 4px 0 #2a0505) drop-shadow(0 0 26px rgba(255,80,20,.6))}
+.title .t2{font-size:clamp(17px,4.4vw,34px);letter-spacing:12px;color:#8fff3a;margin-top:2px;
+  text-shadow:0 0 16px rgba(143,255,58,.7)}
+.title .tag{margin-top:9px;font-size:clamp(11px,2.6vw,14px);letter-spacing:3px;color:#9fb4cc;font-family:system-ui,sans-serif}
+.blood{width:min(460px,86vw);height:14px;margin:12px auto 0;
+  background:linear-gradient(90deg,transparent,#b40d1e,#ff3040,#b40d1e,transparent);
+  filter:blur(1px);border-radius:99px;opacity:.85}
+
+.stats{display:flex;gap:10px;margin:18px 0 14px;flex-wrap:wrap;justify-content:center}
+.stat{background:rgba(10,16,26,.8);border:1px solid rgba(110,170,255,.18);border-radius:12px;padding:8px 16px;text-align:center;min-width:92px}
+.stat b{display:block;font-size:22px;color:#fff;line-height:1.1}
+.stat span{font-size:10px;letter-spacing:2px;color:#7f93ad;font-family:system-ui,sans-serif}
+.stat.gold b{color:var(--gold)}
+
+.menucol{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%}
+.topright{position:absolute;top:max(12px,env(safe-area-inset-top));right:12px;display:flex;gap:8px;z-index:5}
+
+/* -------- ad slot -------- */
+.adslot{margin-top:16px;min-height:0}
+.housead{width:min(336px,90vw);height:110px;border-radius:12px;overflow:hidden;position:relative;
+  background:linear-gradient(135deg,#131b2b,#0a1119);border:1px dashed rgba(140,180,240,.3);
+  display:flex;align-items:center;justify-content:center}
+.ha-tag{position:absolute;top:6px;left:6px;background:rgba(255,210,63,.9);color:#241a00;font-size:9px;
+  padding:2px 6px;border-radius:4px;letter-spacing:1px}
+.ha-title{font-size:19px;color:#8ba7c9;letter-spacing:2px}
+.ha-sub{font-size:10px;color:#56698a;letter-spacing:1px;margin-top:4px;font-family:system-ui,sans-serif;text-align:center}
+
+/* ============================================================ HUD */
+#hud{position:absolute;inset:0;display:none;pointer-events:none}
+#hud.on{display:block}
+.hudTop{position:absolute;top:max(10px,env(safe-area-inset-top));left:0;right:0;padding:0 12px;
+  display:flex;align-items:flex-start;gap:10px}
+.hpWrap{flex:1;max-width:340px}
+.hpBar{height:22px;background:rgba(0,0,0,.6);border:2px solid rgba(255,255,255,.22);border-radius:8px;overflow:hidden;position:relative}
+#hpFill{height:100%;width:100%;background:linear-gradient(90deg,#3ddc6b,#9cf05a);transition:width .16s}
+#hpText{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;
+  text-shadow:0 1px 3px #000;letter-spacing:1px}
+#shieldRow{display:flex;gap:3px;margin-top:4px;font-size:15px}
+#shieldRow b{filter:drop-shadow(0 0 5px #4aa8ff)}
+
+.lvlBox{background:rgba(6,10,18,.85);border:1px solid rgba(120,180,255,.22);border-radius:10px;padding:5px 12px;text-align:center}
+.lvlBox .l{font-size:9px;letter-spacing:2px;color:#7f93ad;font-family:system-ui,sans-serif}
+.lvlBox .v{font-size:20px;line-height:1}
+.coinBox{background:rgba(6,10,18,.85);border:1px solid rgba(255,210,63,.3);border-radius:10px;padding:5px 12px;
+  display:flex;align-items:center;gap:6px;font-size:19px;color:var(--gold)}
+.coinBox.bump{animation:bump .25s}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.22)}100%{transform:scale(1)}}
+
+.progWrap{position:absolute;top:calc(max(10px,env(safe-area-inset-top)) + 54px);left:12px;right:12px;height:8px;
+  background:rgba(0,0,0,.55);border-radius:99px;overflow:hidden;border:1px solid rgba(255,255,255,.12)}
+#progFill{height:100%;width:0;background:linear-gradient(90deg,#35e0ff,#8fff3a);transition:width .18s}
+.progLbl{position:absolute;top:calc(max(10px,env(safe-area-inset-top)) + 64px);left:0;right:0;text-align:center;
+  font-size:10px;letter-spacing:3px;color:#7f93ad;font-family:system-ui,sans-serif}
+
+#powerRow{position:absolute;left:12px;bottom:max(12px,env(safe-area-inset-bottom));display:flex;gap:6px;flex-wrap:wrap;max-width:60vw}
+#powerRow i{font-style:normal;background:rgba(8,14,24,.85);border:1px solid rgba(120,200,255,.3);
+  border-radius:8px;padding:4px 9px;font-size:13px;color:#bfe4ff}
+#powerRow i.hot{border-color:rgba(255,180,40,.7);color:#ffd76a;animation:hotpulse 1.2s infinite}
+@keyframes hotpulse{0%,100%{box-shadow:0 0 0 rgba(255,170,30,0)}50%{box-shadow:0 0 14px rgba(255,170,30,.7)}}
+
+#comboWrap{position:absolute;right:12px;top:calc(max(10px,env(safe-area-inset-top)) + 84px);
+  opacity:0;transform:scale(.8);transition:opacity .15s,transform .15s;text-align:right}
+#comboWrap.on{opacity:1;transform:scale(var(--cs,1))}
+#comboNum{font-size:38px;line-height:.9;color:#fff;
+  text-shadow:0 0 18px rgba(255,120,30,.9),0 3px 0 #7a1a00}
+.comboLbl{font-size:11px;letter-spacing:4px;color:#ffae3a}
+#comboBar{height:4px;background:linear-gradient(90deg,#ff5a1e,#ffd23f);border-radius:99px;margin-top:3px;margin-left:auto;width:0}
+
+#streakText{position:absolute;left:0;right:0;top:32%;text-align:center;font-size:clamp(26px,7vw,58px);
+  color:#fff;opacity:0;pointer-events:none;letter-spacing:3px;
+  text-shadow:0 0 30px rgba(255,60,20,.95),0 4px 0 #6b0d0d}
+#streakText.pop{animation:streak 1.15s ease-out}
+@keyframes streak{0%{opacity:0;transform:scale(.4) rotate(-7deg)}
+  18%{opacity:1;transform:scale(1.18) rotate(2deg)}30%{transform:scale(1) rotate(0)}
+  72%{opacity:1}100%{opacity:0;transform:scale(1.1)}}
+
+#bossBar{position:absolute;left:50%;transform:translateX(-50%);top:calc(max(10px,env(safe-area-inset-top)) + 92px);
+  width:min(560px,90vw);display:none}
+#bossBar.on{display:block;animation:fadein .3s}
+#bossName{text-align:center;font-size:14px;letter-spacing:5px;color:#ff5a4a;margin-bottom:4px;
+  text-shadow:0 0 12px rgba(255,40,20,.9)}
+.bossTrack{height:16px;background:rgba(0,0,0,.72);border:2px solid #7a1414;border-radius:6px;overflow:hidden}
+#bossFill{height:100%;width:100%;background:linear-gradient(90deg,#ff1e1e,#ff8a3a,#ffd23f);transition:width .12s}
+
+#bossWarn{position:absolute;left:0;right:0;top:44%;text-align:center;font-size:clamp(24px,6vw,52px);
+  color:#ff2b20;opacity:0;letter-spacing:8px;text-shadow:0 0 26px rgba(255,20,0,.9)}
+#bossWarn.pop{animation:warn 2s ease-out}
+@keyframes warn{0%{opacity:0;letter-spacing:22px}15%{opacity:1;letter-spacing:8px}
+  25%{opacity:.3}35%{opacity:1}45%{opacity:.3}55%{opacity:1}100%{opacity:0}}
+
+#btnPause{position:absolute;right:12px;top:calc(max(10px,env(safe-area-inset-top)) + 0px);pointer-events:auto}
+#aimRing{position:fixed;width:52px;height:52px;pointer-events:none;z-index:15;opacity:.85;
+  border:2px solid rgba(143,255,58,.85);border-radius:50%;
+  box-shadow:0 0 12px rgba(143,255,58,.5),inset 0 0 12px rgba(143,255,58,.25)}
+#aimRing::before,#aimRing::after{content:"";position:absolute;background:rgba(143,255,58,.9)}
+#aimRing::before{left:50%;top:-8px;width:2px;height:8px;margin-left:-1px}
+#aimRing::after{left:50%;bottom:-8px;width:2px;height:8px;margin-left:-1px}
+#touchHint{position:absolute;left:0;right:0;bottom:22%;text-align:center;font-size:14px;color:#cfe3ff;
+  letter-spacing:2px;opacity:0;transition:opacity .6s;font-family:system-ui,sans-serif;pointer-events:none;
+  text-shadow:0 2px 8px #000}
+
+/* ============================================================ PANELS */
+.panel{background:var(--panel);border:1px solid rgba(120,180,255,.2);border-radius:20px;
+  padding:26px 22px;width:min(480px,94vw);text-align:center;
+  box-shadow:0 24px 70px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.04) inset}
+.panel h2{font-size:clamp(24px,6vw,38px);letter-spacing:2px;margin-bottom:6px}
+.panel .sub{font-size:12px;letter-spacing:3px;color:#8ba1bb;font-family:system-ui,sans-serif;margin-bottom:16px}
+.rowbtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+
+.resgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+.resgrid div{background:rgba(255,255,255,.05);border-radius:12px;padding:10px 6px}
+.resgrid b{display:block;font-size:24px;line-height:1.1}
+.resgrid span{font-size:9px;letter-spacing:2px;color:#8ba1bb;font-family:system-ui,sans-serif}
+.resgrid .c b{color:var(--gold)}
+
+#winStars{font-size:38px;letter-spacing:6px;margin:4px 0 2px}
+#winStars b{color:#ffd23f;text-shadow:0 0 18px rgba(255,200,40,.9);font-style:normal;
+  display:inline-block;animation:starpop .5s backwards}
+#winStars b:nth-child(2){animation-delay:.14s}
+#winStars b:nth-child(3){animation-delay:.28s}
+#winStars i{color:rgba(255,255,255,.14);font-style:normal}
+@keyframes starpop{0%{transform:scale(2.4) rotate(-40deg);opacity:0}100%{transform:none;opacity:1}}
+
+/* ============================================================ SHOP */
+#screenShop{background:linear-gradient(180deg,rgba(3,5,10,.95),rgba(6,10,18,.99))}
+.shopHead{display:flex;align-items:center;justify-content:space-between;width:min(520px,95vw);margin-bottom:10px;gap:10px}
+.shopHead h2{font-size:clamp(20px,5vw,30px);letter-spacing:3px}
+.coinPill{background:linear-gradient(180deg,#2a2208,#191300);border:1px solid rgba(255,210,63,.45);
+  border-radius:99px;padding:7px 16px;color:var(--gold);font-size:19px;display:flex;gap:7px;align-items:center}
+#shopGrid{width:min(520px,95vw);display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow-y:auto;padding-right:4px}
+#shopGrid::-webkit-scrollbar{width:6px}
+#shopGrid::-webkit-scrollbar-thumb{background:rgba(120,180,255,.3);border-radius:9px}
+.shopcard{display:flex;align-items:center;gap:12px;background:rgba(16,23,36,.9);
+  border:1px solid rgba(120,180,255,.16);border-radius:14px;padding:10px 12px;text-align:left}
+.shopcard.maxed{border-color:rgba(143,255,58,.45);background:rgba(18,32,20,.85)}
+.sc-ico{font-size:26px;width:44px;height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.06);border-radius:11px}
+.sc-mid{flex:1;min-width:0}
+.sc-name{font-size:15px;letter-spacing:1.5px}
+.sc-desc{font-size:11px;color:#8ba1bb;font-family:system-ui,sans-serif;margin-top:1px}
+.sc-pips{display:flex;gap:3px;margin-top:5px}
+.sc-pips i{width:14px;height:5px;border-radius:9px;background:rgba(255,255,255,.14);display:block}
+.sc-pips i.f{background:linear-gradient(90deg,#8fff3a,#35e0ff);box-shadow:0 0 6px rgba(143,255,58,.6)}
+.sc-buy{flex:0 0 auto;border:0;cursor:pointer;font-family:inherit;font-size:14px;padding:10px 13px;border-radius:11px;
+  background:linear-gradient(180deg,#ffe27a,#f5a30b);color:#2a1a00;box-shadow:0 4px 0 #8a5600}
+.sc-buy:active{transform:translateY(3px);box-shadow:0 1px 0 #8a5600}
+.sc-buy.no{background:linear-gradient(180deg,#3a4354,#242c3a);color:#7d8ea3;box-shadow:0 4px 0 #141a24}
+.sc-buy.max{background:none;box-shadow:none;color:#8fff3a;font-size:13px;letter-spacing:2px}
+
+/* ============================================================ INTRO */
+#introLvl{font-size:clamp(30px,8vw,54px);letter-spacing:4px;
+  background:linear-gradient(180deg,#fff,#8fff3a);-webkit-background-clip:text;background-clip:text;color:transparent}
+#introObj{font-size:14px;color:#b9cce0;font-family:system-ui,sans-serif;line-height:1.7;margin:8px 0 4px}
+#introObj b{color:#ffd23f}
+#introBoss{margin:10px auto 0;padding:9px 14px;border:1px solid rgba(255,40,30,.5);border-radius:12px;
+  background:rgba(60,6,6,.6);color:#ff6a5a;font-size:13px;letter-spacing:3px;width:fit-content;
+  animation:hotpulse 1.4s infinite}
+.howto{margin-top:14px;font-size:11.5px;color:#7f93ad;font-family:system-ui,sans-serif;line-height:1.9;text-align:left;
+  background:rgba(255,255,255,.04);border-radius:12px;padding:10px 14px}
+.howto b{color:#cfe3ff}
+
+/* ============================================================ AD OVERLAY */
+#adOverlay{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;
+  background:rgba(2,4,8,.94);pointer-events:auto}
+#adOverlay.show{display:flex;animation:fadein .2s}
+.adbox{width:min(460px,92vw);text-align:center;padding:22px}
+.adlabel{font-size:10px;letter-spacing:6px;color:#6d819a;font-family:system-ui,sans-serif}
+.adtitle{font-size:19px;letter-spacing:2px;margin:6px 0 16px;color:#e6f0ff}
+.adsim{height:min(210px,34vh);border-radius:16px;position:relative;overflow:hidden;
+  background:linear-gradient(135deg,#1b2740,#0c1220);border:1px solid rgba(140,180,240,.22);
+  display:flex;align-items:center;justify-content:center}
+.adsim-glow{position:absolute;inset:-40%;
+  background:conic-gradient(from 0deg,transparent,rgba(120,190,255,.28),transparent 45%);animation:spin 3.2s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.adsim-txt{font-size:62px;position:relative;filter:drop-shadow(0 6px 18px rgba(0,0,0,.6))}
+.adbar{height:7px;background:rgba(255,255,255,.1);border-radius:99px;margin-top:16px;overflow:hidden}
+.adbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd23f,#8fff3a)}
+.adcount{margin-top:9px;font-size:13px;color:#9fb4cc;font-family:system-ui,sans-serif}
+.adcount b{color:#ffd23f;font-size:16px}
+.adnote{margin-top:8px;font-size:10px;color:#4f6076;font-family:system-ui,sans-serif}
+
+/* ============================================================ FLOATING TEXT */
+.dmgnum{position:absolute;left:0;top:0;font-size:22px;color:#fff;opacity:0;white-space:nowrap;
+  text-shadow:0 2px 4px #000,0 0 10px rgba(0,0,0,.9);will-change:transform,opacity;pointer-events:none}
+.dmgnum.crit{color:#ff7ac2;font-size:30px;text-shadow:0 0 16px rgba(255,60,160,.95),0 2px 4px #000}
+.dmgnum.crate{color:#9fe8ff;font-size:17px}
+.dmgnum.power{color:#fff;font-size:20px;text-shadow:0 0 18px rgba(255,255,255,.9),0 2px 4px #000}
+.dmgnum.playerdmg{color:#ff4455;font-size:26px}
+.dmgnum.shield{color:#7ec8ff;font-size:22px}
+.coinfall{position:absolute;top:-40px;font-size:28px;animation:fall linear forwards;pointer-events:none}
+@keyframes fall{to{transform:translateY(110vh) rotate(420deg);opacity:.2}}
+
+/* ============================================================ SMALL SCREENS */
+@media (max-height:520px){
+  .title .t1{font-size:clamp(30px,8vw,54px)}
+  .stats{margin:8px 0}
+  .panel{padding:16px 14px}
+  .btn.big{font-size:21px;padding:14px 34px}
+  .adslot{display:none}
+}
+@media (max-width:420px){
+  .btn{font-size:17px;padding:14px 22px}
+  .btn.big{font-size:22px;padding:17px 34px}
+}
+.footnote{margin-top:14px;font-size:10px;color:#4b5b70;font-family:system-ui,sans-serif;letter-spacing:1px;text-align:center}
+</style>
+<!-- CrazyGames platform SDK. If it fails to load (offline / adblock),
+     js/ads.js automatically falls back to a local placeholder so the
+     game NEVER hangs on an ad. -->
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+</head>
+<body>
+
+<div id="canvasWrap"></div>
+
+<div id="vignette"></div>
+<div id="dmgFlash"></div>
+<div id="flash"></div>
+<div id="fxLayer"></div>
+<div id="aimRing"></div>
+
+<div id="ui">
+
+  <!-- ==================================================== HUD -->
+  <div id="hud">
+    <div class="hudTop">
+      <div class="hpWrap">
+        <div class="hpBar"><div id="hpFill"></div><div id="hpText">100 / 100</div></div>
+        <div id="shieldRow"></div>
+      </div>
+      <div class="lvlBox"><div class="l">LEVEL</div><div class="v" id="lvlNum">1</div></div>
+      <div class="coinBox"><span>🪙</span><span id="coinNum">0</span></div>
+      <button class="iconbtn" id="btnPause" style="position:static">⏸</button>
+    </div>
+
+    <div class="progWrap"><div id="progFill"></div></div>
+    <div class="progLbl">EXTRACTION PROGRESS · KILLS <span id="killQuota">0</span></div>
+
+    <div id="bossBar">
+      <div id="bossName">THE DEVOURER</div>
+      <div class="bossTrack"><div id="bossFill"></div></div>
+    </div>
+
+    <div id="comboWrap">
+      <div id="comboNum">0</div>
+      <div class="comboLbl">COMBO</div>
+      <div id="comboBar"></div>
+    </div>
+
+    <div id="powerRow"></div>
+    <div id="streakText"></div>
+    <div id="bossWarn">⚠ WARNING ⚠</div>
+    <div id="touchHint">DRAG ANYWHERE TO AIM &amp; MOVE</div>
+  </div>
+
+  <!-- ==================================================== LOADING -->
+  <div class="screen on" id="screenLoad">
+    <div class="lgo">ZOMBIE<br>RUSH 3D</div>
+    <div id="loadBarWrap"><div id="loadBar"></div></div>
+    <div id="loadPct">0%</div>
+    <div class="loadtip">Booting survival protocol… <br>Tip: crates on the roadside must be <b>shot open</b> — break them before they slide past you.</div>
+  </div>
+
+  <!-- ==================================================== MENU -->
+  <div class="screen" id="screenMenu">
+    <div class="topright">
+      <button class="iconbtn" id="btnSfx">🔊</button>
+      <button class="iconbtn" id="btnMusic">🎵</button>
+    </div>
+
+    <div class="title">
+      <div class="t1">ZOMBIE RUSH</div>
+      <div class="t2">3&nbsp;D</div>
+      <div class="blood"></div>
+      <div class="tag">THE CITY IS GONE · THE HIGHWAY IS ALL THAT'S LEFT</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b id="menuLevel">1</b><span>LEVEL</span></div>
+      <div class="stat"><b id="menuBest">0</b><span>BEST SCORE</span></div>
+      <div class="stat gold"><b id="menuCoins">0</b><span>COINS</span></div>
+    </div>
+
+    <div class="menucol">
+      <button class="btn big" id="btnPlay">▶ <b>PLAY</b></button>
+      <button class="btn ghost" id="btnShop">🛠 UPGRADES</button>
+    </div>
+
+    <div class="adslot" id="adSlotMenu"></div>
+    <div class="footnote">WASD / ← → to strafe · Mouse or finger to aim · Auto-fire</div>
+  </div>
+
+  <!-- ==================================================== SHOP -->
+  <div class="screen" id="screenShop">
+    <div class="shopHead">
+      <h2>🛠 UPGRADES</h2>
+      <div class="coinPill">🪙 <span id="shopCoins">0</span></div>
+    </div>
+    <div id="shopGrid"></div>
+    <div class="rowbtns">
+      <button class="btn ad" id="btnShopFree"><span class="adico">▶</span> FREE <b>+250</b> 🪙</button>
+      <button class="btn ghost" id="btnShopBack">◀ BACK</button>
+    </div>
+    <div class="adslot" id="adSlotShop"></div>
+  </div>
+
+  <!-- ==================================================== LEVEL INTRO -->
+  <div class="screen" id="screenIntro">
+    <div class="panel">
+      <div id="introLvl">LEVEL 1</div>
+      <div id="introObj">Run <b>620m</b> · Shoot everything that moves</div>
+      <div id="introBoss">☠ BOSS ENCOUNTER ☠</div>
+      <div class="howto">
+        <b>AIM</b> — move your mouse / drag your finger. You shoot where you point.<br>
+        <b>MOVE</b> — your aim also steers you. Or use <b>A / D</b>.<br>
+        <b>LOOT</b> — shoot the glowing roadside pods until their bar empties to claim the upgrade.<br>
+        <b>SURVIVE</b> — combos multiply score. Don't get touched.
+      </div>
+      <div class="rowbtns">
+        <button class="btn big" id="btnIntroGo">▶ START</button>
+      </div>
+      <div class="rowbtns">
+        <button class="btn ad" id="btnIntroBoost"><span class="adico">▶</span> WATCH AD · <b>2× DAMAGE</b></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================== PAUSE -->
+  <div class="screen" id="screenPause">
+    <div class="panel">
+      <h2>PAUSED</h2>
+      <div class="sub">TAKE A BREATH — THEY WON'T</div>
+      <div class="rowbtns">
+        <button class="btn" id="btnResume">▶ RESUME</button>
+        <button class="btn ghost" id="btnQuit">⌂ MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================== LEVEL WIN -->
+  <div class="screen" id="screenWin">
+    <div class="panel">
+      <div id="winStars"></div>
+      <h2 id="winLvl">LEVEL 1 CLEARED</h2>
+      <div class="sub">EXTRACTION SUCCESSFUL</div>
+      <div class="resgrid">
+        <div class="c"><b id="winCoins">0</b><span>COINS</span></div>
+        <div><b id="winKills">0</b><span>KILLS</span></div>
+        <div><b id="winScore">0</b><span>SCORE</span></div>
+      </div>
+      <button class="btn ad" id="btnWinDouble" style="width:100%"><span class="adico">▶</span> WATCH AD · <b>2× COINS</b></button>
+      <div class="rowbtns">
+        <button class="btn big" id="btnWinNext">NEXT LEVEL ▶</button>
+      </div>
+      <div class="rowbtns">
+        <button class="btn ghost" id="btnWinMenu">⌂ MENU</button>
+      </div>
+      <div class="adslot" id="adSlotResult"></div>
+    </div>
+  </div>
+
+  <!-- ==================================================== GAME OVER -->
+  <div class="screen" id="screenDead">
+    <div class="panel">
+      <h2 style="color:#ff4455">YOU DIED</h2>
+      <div class="sub" id="deadLvl">LEVEL 1</div>
+      <div class="resgrid">
+        <div><b id="deadScore">0</b><span>SCORE</span></div>
+        <div class="c"><b id="deadCoins">0</b><span>COINS KEPT</span></div>
+        <div><b id="reviveCount">1</b><span>REVIVE LEFT</span></div>
+      </div>
+      <button class="btn ad" id="btnDeadRevive" style="width:100%"><span class="adico">▶</span> WATCH AD · <b>REVIVE</b></button>
+      <div class="rowbtns">
+        <button class="btn red" id="btnDeadRetry">↻ RETRY</button>
+        <button class="btn ghost" id="btnDeadMenu">⌂ MENU</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="adOverlay"></div>
+
+<script src="lib/three.min.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ads.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

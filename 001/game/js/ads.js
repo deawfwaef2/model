@@ -11,6 +11,7 @@
  *  UNIFIED API (do not change without updating all 3 implementations):
  *    Ads.platform                -> 'local' | 'crazygames' | 'playgama'
  *    Ads.init()                  -> Promise<void>
+ *    Ads.gameReady()             -> void        (loading finished, menu shown)
  *    Ads.showBanner(elId)        -> void        (static banner in a container)
  *    Ads.hideBanner()            -> void
  *    Ads.showInterstitial()      -> Promise<void>
@@ -88,6 +89,10 @@
     return Promise.resolve();
   };
 
+  /* Called once the game is loaded and the menu is interactive.
+     Platform builds map this to loadingStop() / GAME_READY. */
+  Ads.gameReady = function () {};
+
   Ads.showBanner = function (elId) {
     var el = document.getElementById(elId);
     if (!el) return;
@@ -116,7 +121,7 @@
     });
   };
 
-  Ads.gameplayStart = function () {};
+  Ads.gameplayStart = function () { Ads.gameReady(); };
   Ads.gameplayStop = function () {};
   Ads.happyTime = function () {};
   Ads.isAdBlocked = function () { return false; };

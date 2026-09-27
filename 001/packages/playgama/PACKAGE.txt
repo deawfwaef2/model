@@ -1,0 +1,15 @@
+ZOMBIE RUSH 3D  ·  build: playgama  ·  version: 2026.09.27
+
+HOW TO PUBLISH
+  Upload the CONTENTS of this folder (index.html must be at the archive root).
+
+HOW TO TEST LOCALLY
+  Just double-click index.html. The platform SDK will fail to load offline and
+  the game automatically falls back to placeholder ads — everything stays playable.
+
+FILES
+  index.html          entry point
+  lib/three.min.js    three.js r159 (UMD)
+  js/audio.js         procedural audio engine (original, royalty-free)
+  js/ads.js           playgama ad adapter
+  js/game.js          game logic
