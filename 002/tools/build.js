@@ -24,7 +24,8 @@ const PACKAGES = path.join(ROOT, 'packages');
 const RELEASES = path.join(ROOT, 'releases');
 
 const SRC_ORDER = [
-  '00_core.js', '10_audio.js', '20_ads.js', '30_data.js',
+  '00_core.js', '05_assets_data.js', '07_assets.js',
+  '10_audio.js', '20_ads.js', '30_data.js',
   '40_world.js', '50_game.js', '60_ui.js', '70_boot.js'
 ];
 
@@ -160,8 +161,10 @@ function zip(entries, outPath) {
 }
 
 /* ------------------------------- 组装 HTML ----------------------------- */
-const three = read(path.join(LIB, 'three.min.js'));
-const css = minCss(read(path.join(SRC, 'style.css')));
+const three = read(path.join(LIB, 'three.min.js'))
+  + '\n' + read(path.join(LIB, 'three-addons.js'));
+// 字体 CSS 里全是 base64 data URI，压缩器不要碰
+const css = read(path.join(SRC, '01_fonts.css')) + '\n' + minCss(read(path.join(SRC, 'style.css')));
 const srcJoined = SRC_ORDER.map(f => '\n/* ===== ' + f + ' ===== */\n' + read(path.join(SRC, f))).join('\n');
 
 function makeHtml(provider, opts) {

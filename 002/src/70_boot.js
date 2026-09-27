@@ -23,8 +23,18 @@
 
     TL.ads.loadingStart();
 
-    // 世界初始化（同步，但分帧给 UI 一个呼吸）
+    /* 先把模型解码出来（分帧进行，加载条会真的走），再初始化世界。
+       所有 GLB 都是 base64 内联的，不走网络，所以不会卡在「连接中」。 */
     setTimeout(function () {
+      if (U.el.loadTxt) U.el.loadTxt.textContent = TL.t('loadingAssets') || 'DECODING ASSETS';
+      TL.assets.load(
+        function (p) { setProgress(0.15 + p * 0.45); },
+        function () { initWorld(); }
+      );
+    }, 60);
+  }
+
+  function initWorld() {
       var canvas = d.getElementById('gl');
       try {
         W.init(canvas);
@@ -52,7 +62,6 @@
 
       lastT = performance.now();
       rafId = requestAnimationFrame(loop);
-    }, 60);
   }
 
   function readyToTap() {
@@ -123,32 +132,26 @@
     idleT += dt;
     var ti = W.titan;
     if (ti && ti.alive) {
-      ti.walkPhase += dt * 1.1;
-      var wp = ti.walkPhase;
-      ti.legs[0].rotation.z = Math.sin(wp) * 0.16;
-      ti.legs[1].rotation.z = -Math.sin(wp) * 0.16;
-      ti.arms[0].rotation.z = -Math.sin(wp) * 0.12;
-      ti.arms[1].rotation.z = Math.sin(wp) * 0.12;
-      ti.mesh.position.y = Math.abs(Math.sin(wp)) * 0.12;
+      // 菜单里让泰坦待机而不是行军 —— 一尊站在裂隙前的活雕像
+      if (ti.anim !== 'Idle') W.titanAnim(ti, 'Idle', 0.4);
       ti.core.scale.setScalar(1 + Math.sin(idleT * 3) * 0.1);
       ti.coreRing.rotation.z += dt * 0.8;
       ti.eye.material.opacity = 0.6 + Math.sin(idleT * 6) * 0.3;
-      var sp = Math.floor(wp / Math.PI);
-      if (sp !== ti.lastStep) { ti.lastStep = sp; W.addShake(0.06); }
     }
     // 小兵原地飘
     for (var i = 0; i < W.grunts.length; i++) {
       var g = W.grunts[i]; if (!g.alive) continue;
       g.bob += dt * 3;
-      g.mesh.position.y = 1.15 + Math.sin(g.bob) * 0.2;
+      g.mesh.position.y = 1.45 + Math.sin(g.bob) * 0.2;
       g.mesh.rotation.y += dt * 0.5;
-      g.parts.body.rotation.x += dt * 1.2;
+      g.parts.body.rotation.y += dt * 1.2;
     }
     // 道具旋转
     for (var a = 0; a < W.amps.length; a++) {
       var e = W.amps[a]; if (!e.alive) continue;
       e.bob += dt; e.mesh.rotation.y += dt * e.spin;
       e.parts.core.rotation.x += dt; e.parts.cage.rotation.y -= dt * 0.8;
+      e.parts.r1.rotation.z += dt * 0.7;
     }
     for (var c = 0; c < W.cores.length; c++) {
       var e2 = W.cores[c]; if (!e2.alive) continue;

@@ -62,13 +62,43 @@ const win = {
   console, Math, Date, JSON, parseInt, parseFloat, isNaN, Object, Array, String, Number, Boolean,
   Float32Array, Uint8Array, Uint16Array, Uint32Array, Int32Array, Uint8ClampedArray, ArrayBuffer, DataView,
   Error, TypeError, RangeError, Promise, Map, Set, WeakMap, WeakSet, Symbol, Reflect, Proxy,
-  confirm: () => false, alert() {}, location: { reload() {}, href: '' }
+  confirm: () => false, alert() {}, location: { reload() {}, href: '' },
+  // --- 模型解码链路需要的浏览器全局量 ---
+  atob, btoa, TextDecoder, TextEncoder, URL, Blob,
+  requestAnimationFrame: (f) => setTimeout(() => f(Date.now()), 0),
+  cancelAnimationFrame: clearTimeout
 };
 win.window = win; win.self = win; win.globalThis = win;
 win.document = {
   readyState: 'complete', hidden: false, body: mkEl('body'), documentElement: mkEl('html'),
   createElement: t => (t === 'canvas' ? mkCanvas() : mkEl(t)),
-  createElementNS: () => mkEl('svg'),
+  createElementNS: (ns, t) => {
+    if (t !== 'img') return mkEl(t || 'svg');
+    // three 的 ImageLoader 走的是 addEventListener('error')，不是 onerror，
+    // 两条路都得接上，否则带贴图的 GLB 会永远停在「加载中」。
+    const handlers = { load: [], error: [] };
+    const el = {
+      width: 4, height: 4, crossOrigin: null, onload: null, onerror: null,
+      addEventListener(type, fn) { (handlers[type] || (handlers[type] = [])).push(fn); },
+      removeEventListener(type, fn) {
+        const a = handlers[type]; if (!a) return;
+        const i = a.indexOf(fn); if (i >= 0) a.splice(i, 1);
+      }
+    };
+    let _src = '';
+    Object.defineProperty(el, 'src', {
+      get() { return _src; },
+      set(v) {
+        _src = v;
+        setTimeout(() => {
+          const ev = { type: 'error', target: el };
+          handlers.error.slice().forEach(fn => fn(ev));
+          if (el.onerror) el.onerror(ev);
+        }, 0);
+      }
+    });
+    return el;
+  },
   createTextNode: t => ({ textContent: t }),
   getElementById: () => mkEl('div'),
   querySelector: () => mkEl('div'), querySelectorAll: () => [],
@@ -85,19 +115,39 @@ function run(file, code) {
 /* --------------------------- 载入 three.js --------------------------- */
 run('three.min.js', fs.readFileSync(path.join(ROOT, 'lib', 'three.min.js'), 'utf8'));
 if (!win.THREE) { console.error('  ✗ THREE 未挂到 window'); process.exit(1); }
-console.log('  · three.js r' + win.THREE.REVISION + ' loaded');
+run('three-addons.js', fs.readFileSync(path.join(ROOT, 'lib', 'three-addons.js'), 'utf8'));
+for (const k of ['GLTFLoader', 'EffectComposer', 'UnrealBloomPass', 'skeletonClone', 'mergeGeometries']) {
+  if (!win.THREE[k]) { console.error('  ✗ three addons 缺少 ' + k); process.exit(1); }
+}
+console.log('  · three.js r' + win.THREE.REVISION + ' + addons loaded');
 
 /* --------------------------- 打桩渲染器 ----------------------------- */
 win.THREE.WebGLRenderer = function (opts) {
   this.domElement = (opts && opts.canvas) || mkCanvas();
   this.outputColorSpace = '';
   this.info = { render: { calls: 0, triangles: 0 }, memory: { geometries: 0, textures: 0 } };
-  this.setPixelRatio = function () {};
+  this.setPixelRatio = function (v) { this._dpr = v; };
+  this.getPixelRatio = function () { return this._dpr || 1; };
   this.setSize = function () {};
+  this.getSize = function (target) { if (target) { target.x = 1280; target.y = 720; return target; } return { x: 1280, y: 720 }; };
+  this.getContext = function () { return { getParameter: () => 0, getExtension: () => null }; };
   this.setClearColor = function () {};
+  this.getRenderTarget = function () { return null; };
+  this.setRenderTarget = function () {};
+  this.clear = function () {};
+  this.getClearColor = function (t) { return t || {}; };
+  this.getClearAlpha = function () { return 1; };
+  this.capabilities = { isWebGL2: true, getMaxAnisotropy: () => 4 };
+  this.state = { buffers: { depth: { setMask() {} }, color: { setMask() {} }, stencil: { setMask() {}, setTest() {}, setFunc() {}, setOp() {} } } };
+  this.autoClear = true;
   this.render = function (scene, camera) {
     this.info.render.calls++;
-    if (scene) scene.updateMatrixWorld(true);
+    if (scene) {
+      scene.updateMatrixWorld(true);
+      // 真实渲染器会在绘制前更新骨骼矩阵，打桩版也得补上，
+      // 否则蒙皮相关的逻辑在测试里永远是脏数据
+      scene.traverse(o => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.update(); });
+    }
     if (camera) { camera.updateMatrixWorld(true); camera.matrixWorldInverse.copy(camera.matrixWorld).invert(); }
   };
   this.dispose = function () {};
@@ -105,7 +155,8 @@ win.THREE.WebGLRenderer = function (opts) {
 };
 
 /* ---------------------------- 载入游戏源码 --------------------------- */
-['00_core.js', '10_audio.js', '20_ads.js', '30_data.js', '40_world.js', '50_game.js']
+['00_core.js', '05_assets_data.js', '07_assets.js', '10_audio.js', '20_ads.js', '30_data.js',
+ '40_world.js', '50_game.js']
   .forEach(f => run(f, fs.readFileSync(path.join(SRC, f), 'utf8')));
 
 const TL = win.TL;
@@ -117,11 +168,39 @@ console.log('  · modules loaded: core/audio/ads/data/world/game');
 /* ------------------------------ 初始化 ------------------------------ */
 TL.save.load();
 TL.setLang('zh');
+
+const W = TL.world, G = TL.game;
+
+/* 模型解码是异步的（分帧解析），整条测试链路挂在它的回调上跑。 */
+const t0 = Date.now();
+let decoded = 0;
+TL.assets.load(
+  (p) => { decoded = p; },
+  () => {
+    const n = Object.keys(TL.assets.models).length;
+    console.log('  · assets decoded: ' + n + ' 个模型, ' + (Date.now() - t0) + 'ms');
+    if (n < 60) { console.error('  ✗ 模型数量不对，期望 ≥60，实际 ' + n); process.exit(1); }
+    if (!TL.assets.models.titan || TL.assets.anims('titan').length !== 14) {
+      console.error('  ✗ 泰坦模型/动画缺失'); process.exit(1);
+    }
+    main();
+  }
+);
+setTimeout(() => { console.error('  ✗ 模型解码超时（进度 ' + (decoded * 100).toFixed(0) + '%）'); process.exit(1); }, 60000);
+
+function main() {
 try { TL.world.init(mkCanvas()); }
 catch (e) { console.error('  ✗ world.init 失败\n' + e.stack); process.exit(1); }
 console.log('  · world.init ok — scene children: ' + TL.world.scene.children.length);
-
-const W = TL.world, G = TL.game;
+let drawCalls = 0;
+TL.world.scene.traverse(o => { if (o.isMesh) drawCalls++; });
+console.log('  · 场景网格数: ' + drawCalls + '（其中子弹池 260 个默认隐藏）');
+console.log('  · 场地合批结果: 主场景 ' + TL.world.arena.children.length
+  + ' 个 mesh / 远景 ' + TL.world.arenaFar.children.length + ' 个 mesh');
+console.log('  · 后期管线: ' + (TL.world.composer ? '✓ Bloom + 调色 + OutputPass' : '（未启用）'));
+let tri = 0;
+TL.world.arena.traverse(o => { if (o.isMesh && o.geometry.attributes.position) tri += o.geometry.attributes.position.count / 3; });
+console.log('  · 场地三角形: ' + Math.round(tri).toLocaleString());
 
 /* ------------------------- 会真的瞄准的 AI 玩家 ------------------------- */
 const V3 = win.THREE.Vector3;
@@ -260,3 +339,4 @@ if (Math.abs(after - before) > 3) failures++;
 
 console.log('\n' + (failures ? '  ✗ 共 ' + failures + ' 处问题\n' : '  ✓ 全部通过\n'));
 process.exit(failures ? 1 : 0);
+}   /* end main() */

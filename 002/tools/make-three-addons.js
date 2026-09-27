@@ -28,6 +28,7 @@ const OUT = process.argv[3] || path.resolve(__dirname, '..', 'lib', 'three-addon
 // 依赖顺序很重要：被依赖的排前面
 const ORDER = [
   'utils_BufferGeometryUtils.js',
+  'utils_SkeletonUtils.js',
   'loaders_GLTFLoader.js',
   'postprocessing_Pass.js',
   'shaders_CopyShader.js',
@@ -46,7 +47,8 @@ const ORDER = [
 const EXPOSE = [
   'GLTFLoader', 'EffectComposer', 'RenderPass', 'ShaderPass', 'MaskPass', 'ClearMaskPass',
   'UnrealBloomPass', 'OutputPass', 'CopyShader', 'LuminosityHighPassShader', 'OutputShader',
-  'FXAAShader', 'Pass', 'FullScreenQuad'
+  'FXAAShader', 'Pass', 'FullScreenQuad',
+  'clone', 'mergeGeometries', 'mergeVertices'
 ];
 
 const threeSymbols = new Set();
@@ -101,7 +103,7 @@ const header = `/*!
 const footer = `
 
   /* ------------------------- expose ------------------------- */
-${EXPOSE.map(n => `  if (typeof ${n} !== 'undefined') THREE.${n} = ${n};`).join('\n')}
+${EXPOSE.map(n => `  if (typeof ${n} !== 'undefined') THREE.${n === 'clone' ? 'skeletonClone' : n} = ${n};`).join('\n')}
 })(typeof window !== 'undefined' ? window : globalThis);
 `;
 

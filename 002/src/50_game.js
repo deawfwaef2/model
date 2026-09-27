@@ -97,6 +97,7 @@
     W.buildLevel(def);
     W.setCam('intro');
     W.hero.position.set(W.LANE.hero, 0, 0);
+    W.setWeapon(TL.save.data.weapon || 'pulse');   // 手上的枪跟着装备走
 
     // 开局预载增幅
     var pre = st.startAmps + extraStart;
@@ -355,6 +356,9 @@
     TL.vibrate([60, 40, 120]);
     ti.alive = false;
     ti.deathT = 0;
+    W.titanAnim(ti, 'Death', 0.08);
+    W.glow(ti.mats, 0xffffff, 2.2);            // 临死一闪
+    W.setFlash(0.55);
 
     var others = [W.titan, W.titan2].filter(function (x) { return x && x.alive; });
     if (others.length === 0) win();
@@ -641,8 +645,7 @@
         var bodyHit = false;
         if (!isCore) {
           var bx = ti.mesh.position.x, bz = ti.mesh.position.z;
-          var hh = 12.5 * ti.scale;
-          if (Math.abs(cx - bx) < 2.6 * ti.scale && Math.abs(cz - bz) < 2.8 * ti.scale && cy > 0.5 && cy < hh) bodyHit = true;
+          if (Math.abs(cx - bx) < ti.hitX && Math.abs(cz - bz) < ti.hitZ && cy > 0.5 && cy < ti.hitH) bodyHit = true;
         }
         if (isCore || bodyHit) {
           hit = ti; hitP = { x: cx, y: cy, z: cz };
@@ -735,12 +738,12 @@
         e.mesh.position.y = 1.15 + Math.sin(e.bob) * 0.16;
       }
       e.mesh.rotation.y = Math.atan2(-e.mesh.position.z, -e.mesh.position.x) + Math.PI;
-      e.parts.body.rotation.x += dt * 2.4;
+      e.parts.body.rotation.y += dt * (e.fast ? 0.6 : 2.4);   // 碟形机身自转
       e.parts.ring.rotation.z += dt * 3.2;
       if (e.hitFlash > 0) {
         e.hitFlash -= dt * 7;
         var f = Math.max(0, e.hitFlash);
-        e.parts.body.material.emissiveIntensity = 0.75 + f * 3.4;
+        W.glow(e.parts.mats, 0xffffff, f * 3.2);               // 整机爆闪
         e.mesh.scale.setScalar(1 + f * 0.22);
       }
     }
@@ -830,9 +833,10 @@
 
       if (!ti.alive) {
         ti.deathT = (ti.deathT || 0) + dt;
-        ti.mesh.rotation.z = M.lerp(ti.mesh.rotation.z, -1.35, Math.min(1, dt * 2.2));
-        ti.mesh.position.y = M.lerp(ti.mesh.position.y, -1.6, Math.min(1, dt * 1.5));
+        // 倒地交给 Death 动画，这里只做缓慢下沉和熄灭
+        ti.mesh.position.y = M.lerp(ti.mesh.position.y, -0.55, Math.min(1, dt * 1.2));
         ti.core.material.opacity = Math.max(0, ti.core.material.opacity - dt * 1.2);
+        if (ti.eye) ti.eye.material.opacity = Math.max(0, ti.eye.material.opacity - dt * 2.4);
         if (Math.random() < dt * 10) {
           W.burst(ti.mesh.position.x + (Math.random() - 0.5) * 6, 2 + Math.random() * 8, ti.mesh.position.z + (Math.random() - 0.5) * 6,
             6, { color: W.act.titan, speed: 10, life: 0.7 });
@@ -845,17 +849,25 @@
         var p = M.clamp(G.elapsed / G.totalTime, 0, 1);
         var baseX = M.lerp(W.LANE.titanStart + (ti.big ? 0 : 8), W.LANE.titanEnd + (ti.big ? 0 : 3.2), p);
         ti.mesh.position.x = baseX;
-        ti.walkPhase += dt * (3.2 + p * 2.2);
       }
 
-      // 走路动画
+      /* 走路：骨骼动画驱动。
+         把动画播放速度和 walkPhase 绑死，脚步声/震屏才会和抬脚落脚对得上。
+         Walking 片段 0.96 秒走两步，所以一步 = π 相位。 */
+      var pw = M.clamp(G.elapsed / G.totalTime, 0, 1);
+      var ts = 0.78 + pw * 0.55;
+      var wa = ti.actions && ti.actions.Walking;
+      if (wa) wa.timeScale = ts;
+      if (playing) ti.walkPhase += dt * ts * (2 / 0.96) * Math.PI;
       var wp = ti.walkPhase;
-      ti.legs[0].rotation.z = Math.sin(wp) * 0.42;
-      ti.legs[1].rotation.z = -Math.sin(wp) * 0.42;
-      ti.arms[0].rotation.z = -Math.sin(wp) * 0.3;
-      ti.arms[1].rotation.z = Math.sin(wp) * 0.3;
-      ti.mesh.position.y = Math.abs(Math.sin(wp)) * 0.32 - 0.1;
-      ti.mesh.rotation.y = Math.sin(wp * 0.5) * 0.06;
+      ti.mesh.rotation.y = Math.sin(wp * 0.5) * 0.05;
+
+      /* 进入最后 2 秒 = 举拳，给玩家一个明确的「要完蛋了」信号 */
+      if (playing && ti.big) {
+        var near = ti.mesh.position.x < W.LANE.titanEnd + 7.5;
+        if (near && ti.anim !== 'Punch') { W.titanAnim(ti, 'Punch', 0.14); TL.audio.play('titanRoar', 1.15); }
+        else if (!near && ti.anim !== 'Walking') W.titanAnim(ti, 'Walking', 0.2);
+      }
 
       // 脚步声
       var stepPhase = Math.floor(wp / Math.PI);
