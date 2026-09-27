@@ -3,7 +3,7 @@
    TITAN LOOP — tools/smoketest.js
    Node 里跑真实的 three.js 场景图 + 打桩渲染器，把整个战斗循环空跑一遍。
    捕捉：模块加载错误、关卡搭建错误、每帧更新错误、胜负流程错误、内存泄漏迹象。
-   用法： node 001/titan-loop/tools/smoketest.js
+   用法： node 002/tools/smoketest.js
    ========================================================================== */
 'use strict';
 const fs = require('fs');

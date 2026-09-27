@@ -4,19 +4,19 @@
    把 src/ + vendor/ 内联成 3 个单文件 HTML 包，并打成 zip。
    零依赖：只用 Node 自带 fs / path / zlib。
 
-   用法： node 001/titan-loop/tools/build.js     （仓库根目录执行也可以）
+   用法： node 002/tools/build.js     （仓库根目录执行也可以）
    产出：
-     001/titan-loop/packages/standalone/index.html   下载双击即玩（无平台 SDK）
-     001/titan-loop/packages/crazygames/index.html   CrazyGames SDK v3
-     001/titan-loop/packages/playgama/index.html     Playgama Bridge
-     001/titan-loop/releases/*.zip                   上传用
+     002/packages/standalone/index.html   下载双击即玩（无平台 SDK）
+     002/packages/crazygames/index.html   CrazyGames SDK v3
+     002/packages/playgama/index.html     Playgama Bridge
+     002/releases/*.zip                   上传用
    ========================================================================== */
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-const ROOT = path.resolve(__dirname, '..');          // .../001/titan-loop
+const ROOT = path.resolve(__dirname, '..');          // .../002
 const SRC = path.join(ROOT, 'src');
 const LIB = path.join(ROOT, 'lib');
 // 注意：不能用 build/ dist/ out/ 这类名字，工作区快照会丢弃它们（见根 handoff.md C8）

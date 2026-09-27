@@ -1,5 +1,5 @@
 TITAN LOOP — 10 Seconds to Kill a God
-build: 2026-09-27 17:23
+build: 2026-09-27 17:30
 
 Single self-contained index.html. No external assets, no build step, no network required
 for the game itself (three.js r160 MIT is inlined).
@@ -8,10 +8,14 @@ All music and sound effects are generated in real time with the Web Audio API.
 They are 100% original synthesis — no samples, no third-party recordings —
 so the package is clear for commercial use with no attribution required.
 
-STANDALONE BUILD
-  Double-click index.html. Works offline from the file:// protocol.
-  Ad calls fall back to a local placeholder overlay and still grant the reward,
-  so every ad-gated feature is testable without a portal.
+PLAYGAMA BUILD
+  SDK: https://bridge.playgama.com/v1/stable/playgama-bridge.js (loaded in <head>)
+  Implemented: bridge.initialize(), platform.sendMessage("game_ready"),
+  advertisement.showRewarded/showInterstitial/showBanner,
+  REWARDED_STATE_CHANGED (reward granted ONLY on state === "rewarded"),
+  INTERSTITIAL_STATE_CHANGED, PAUSE_STATE_CHANGED, AUDIO_STATE_CHANGED,
+  setMinimumDelayBetweenInterstitial(45).
+  playgama-bridge-config.json is included — edit platform ids before upload.
 
 AD PLACEMENTS
   main menu      static 300x250 banner
